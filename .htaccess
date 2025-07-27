@@ -1,0 +1,29 @@
+RewriteEngine On
+
+# Blokir akses file sensitif berdasarkan ekstensi
+RewriteCond %{REQUEST_URI} \.(bak|backup|old|tmp|log|ini|conf|sql|db)$ [NC]
+RewriteRule ^.*$ - [F,L]
+
+# Clean URLs - hanya untuk root level, jangan ganggu subfolder
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/[^/]+$
+RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+RewriteRule ^([^/]+)$ $1.php [L]
+
+# Clean URLs untuk .html - hanya root level
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/[^/]+$
+RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+RewriteRule ^([^/]+)$ $1.html [L]
+
+# Default index files
+DirectoryIndex index.php index.html
+
+# Security headers (opsional)
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
