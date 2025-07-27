@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSC API Docs | Interactive</title>
+    <title>DGXO | Codify</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
@@ -269,7 +269,7 @@
     <header class="page-header">
         <div class="container">
             <div class="header-content">
-                <a href="/" class="logo">CSC<span>.</span>API</a>
+                <a href="/" class="logo">Codify<span>.</span>API</a>
                 <div class="search-wrapper">
                      <span class="search-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -651,7 +651,7 @@ func main() {
     </main>
     
     <footer class="footer">
-        <p>&copy; 2025 CSC (Cloud Share Code). Dibuat oleh <a href="https://github.com/cloudkuimages" target="_blank" rel="noopener noreferrer">alfidev</a>.</p>
+        <p>&copy; 2025 Codify. Dibuat oleh <a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer">DGXO</a>.</p>
     </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>

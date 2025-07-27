@@ -2,7 +2,7 @@
 require_once "includes/db.php";
 require_once "includes/functions.php";
 
-session_start();
+// session_start();
 
 $viewed_username = $_GET['user'] ?? '';
 $current_user_logged_in = isLoggedIn();
@@ -13,7 +13,7 @@ $message = "";
 
 if (empty($viewed_username)) {
     if ($current_user_logged_in && isset($_SESSION['username'])) {
-        header("Location: /profile?user=" . urlencode($_SESSION['username']));
+        header("Location: profile.php?user=" . urlencode($_SESSION['username']));
         exit;
     } else {
         header("Location: /");
@@ -171,7 +171,7 @@ if ($is_owner && $_SERVER["REQUEST_METHOD"] == "POST") {
             } else {
                 $stmt_update->bind_param($types, ...$params);
                 if ($stmt_update->execute()) {
-                    header("Location: profile?user=" . urlencode($user_data['username']) . "&status=updated");
+                    header("Location: profile.php?user=" . urlencode($user_data['username']) . "&status=updated");
                     exit;
                 } else {
                     $message = ["type" => "error", "text" => "Database update failed."];
@@ -208,7 +208,7 @@ $social_icon_classes = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars(!empty($user_data['display_name']) ? $user_data['display_name'] : $user_data['username']); ?>'s Profile - CSC</title>
+    <title><?php echo htmlspecialchars(!empty($user_data['display_name']) ? $user_data['display_name'] : $user_data['username']); ?>'s Profile - Codify</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -305,7 +305,7 @@ $social_icon_classes = [
     </style>
 </head>
 <body>
-    <header class="site-header"><a href="/">CSC</a></header>
+    <header class="site-header"><a href="/">Codify</a></header>
     <div class="alert-container">
         <?php if (!empty($message)): ?>
             <div class="alert <?php echo htmlspecialchars($message['type']); ?>"><?php echo htmlspecialchars($message['text']); ?></div>
@@ -348,7 +348,7 @@ $social_icon_classes = [
             <div class="snippets-grid">
                 <?php if (count($snippets) > 0): foreach ($snippets as $snippet): ?>
                     <div class="snippet-card" onmousemove="this.style.setProperty('--mouse-x', `${event.clientX - this.getBoundingClientRect().left}px`); this.style.setProperty('--mouse-y', `${event.clientY - this.getBoundingClientRect().top}px`);">
-                        <a href="view?id=<?php echo htmlspecialchars($snippet['share_id']); ?>" class="card-content">
+                         <a href="view.php?id=<?php echo htmlspecialchars($snippet['share_id']); ?>" class="card-content">
                             <h3><?php echo htmlspecialchars($snippet['title']); ?></h3>
                             <div class="snippet-meta"><time>Shared on <?php echo date("M d, Y, g:i A", strtotime($snippet['created_at'])); ?></time></div>
                             <div class="snippet-preview"><pre><code class="language-<?php echo htmlspecialchars($snippet['language']); ?>"><?php echo htmlspecialchars(substr($snippet['code_content'], 0, 200)) . (strlen($snippet['code_content']) > 200 ? '...' : ''); ?></code></pre></div>
@@ -372,7 +372,7 @@ $social_icon_classes = [
                 <h2>Profile Settings</h2>
                 <button class="modal-close" id="close-settings-modal">&times;</button>
             </div>
-            <form action="profile?user=<?php echo urlencode($user_data['username']); ?>" method="post" enctype="multipart/form-data">
+            <form action="profile.php?user=<?php echo urlencode($user_data['username']); ?>" method="post" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="display-name-input">Display Name</label>

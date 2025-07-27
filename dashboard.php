@@ -83,7 +83,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         }
     }
-    header("Location: /dashboard");
+    header("Location: dashboard.php");
     exit;
 }
 
@@ -114,7 +114,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - CSC</title>
+    <title>Dashboard - Codify</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css">
@@ -132,7 +132,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
     <div @click="isSidebarOpen = false" class="fixed inset-0 bg-black/60 z-30 md:hidden" x-show="isSidebarOpen" x-transition:enter="transition-opacity ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in-out duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
     <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-card/70 backdrop-blur-lg border-r border-border flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 flex" :class="{ 'translate-x-0': isSidebarOpen }">
         <div class="p-4 border-b border-border flex justify-between items-center">
-            <a href="/dashboard" class="flex items-center gap-2.5 text-xl font-bold">
+            <a href="index.php" class="flex items-center gap-2.5 text-xl font-bold">
                 <span class="p-2 bg-accent rounded-lg text-accent-foreground flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
                 </span>
@@ -143,12 +143,12 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
             </button>
         </div>
         <nav class="flex-1 flex flex-col gap-2 p-4">
-            <a href="/dashboard" class="flex items-center gap-3 px-3 py-2 text-primary bg-accent/20 border border-accent/30 rounded-lg transition-colors hover:bg-accent/30"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Dashboard</span></a>
-             <a href="/docs" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg">
+            <a href="dashboard.php" class="flex items-center gap-3 px-3 py-2 text-primary bg-accent/20 border border-accent/30 rounded-lg transition-colors hover:bg-accent/30"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Dashboard</span></a>
+             <a href="docs.php" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
         <span>Docs</span>
     </a>
-            <a href="/leaderboard" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17h4v-2.34"/><path d="M12 9v5.66"/><path d="M8 12h8"/><path d="M12 18h.01"/></svg><span>Leaderboard</span></a>
+            <a href="leaderboard.php" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17h4v-2.34"/><path d="M12 9v5.66"/><path d="M8 12h8"/><path d="M12 18h.01"/></svg><span>Leaderboard</span></a>
         </nav>
         <div class="mt-auto p-2 border-t border-border relative">
             <div @click="isProfileMenuOpen = !isProfileMenuOpen" class="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
@@ -157,8 +157,8 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-muted-foreground transition-transform" :class="{ 'rotate-180': isProfileMenuOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
             </div>
             <div x-show="isProfileMenuOpen" @click.away="isProfileMenuOpen = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute bottom-full left-2 right-2 mb-2 w-auto bg-card border border-border rounded-lg shadow-xl" style="display: none;">
-                <a href="profile" class="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30 hover:text-primary rounded-t-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
-                <a href="logout" class="flex items-center gap-3 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-b-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg><span>Sign Out</span></a>
+                <a href="profile.php" class="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30 hover:text-primary rounded-t-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+                <a href="logout.php" class="flex items-center gap-3 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-b-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg><span>Sign Out</span></a>
             </div>
         </div>
     </aside>
@@ -231,7 +231,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                                         <td class="p-4 text-right">
                                             <div class="flex justify-end items-center space-x-2">
                                                 <button type="button" @click="openEditModal(code.share_id)" class="inline-flex items-center justify-center rounded-md text-xs font-bold h-8 px-3 transition-colors hover:bg-muted hover:text-primary">Edit</button>
-                                                <a :href="'view?id=' + code.share_id" class="inline-flex items-center justify-center rounded-md text-xs font-bold h-8 px-3 transition-colors text-primary hover:bg-accent hover:text-accent-foreground">View</a>
+                                                <a :href="'view.php?id=' + code.share_id" class="inline-flex items-center justify-center rounded-md text-xs font-bold h-8 px-3 transition-colors text-primary hover:bg-accent hover:text-accent-foreground">View</a>
                                             </div>
                                         </td>
                                     </tr>
@@ -248,7 +248,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
 
 <div x-show="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" style="display: none;">
     <div @click.away="isModalOpen = false" x-show="isModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl m-4">
-        <form id="snippet-form" method="post" action="/dashboard" class="p-6 space-y-4">
+        <form id="snippet-form" method="post" action="dashboard.php" class="p-6 space-y-4">
             <input type="hidden" name="edit_share_id" id="edit-share-id-input" x-model="currentSnippet.share_id">
             <div class="text-center mb-4">
                 <h2 class="text-2xl font-bold" x-text="modalMode === 'edit' ? 'Edit Snippet' : 'Share a New Snippet'"></h2>

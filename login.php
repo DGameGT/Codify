@@ -46,7 +46,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login - CSC</title>
+    <title>Login - Codify</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -132,7 +132,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
 <body>
     <div class="container">
         <div class="form-container">
-            <h1>Login to CSC</h1>
+            <h1>Login to Codify</h1>
             <?php if(!empty($login_err)){ echo '<div class="alert-danger">' . $login_err . '</div>'; } ?>
             <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post">
                 <div class="form-group">
@@ -152,7 +152,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST"){
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', (event) => {
-            console.log('CSC Loaded - By AlfiDev');
+            console.log('Codify Loaded - By DGXO');
         });
     </script>
 </body>

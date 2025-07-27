@@ -5,7 +5,7 @@ ob_start("ob_gzhandler");
 require_once "includes/db.php";
 require_once "includes/functions.php";
 
-session_start();
+// session_start();
 
 $view_mode = isset($_GET['profile']) && !empty($_GET['profile']) ? 'profile' : 'leaderboard';
 $current_user_id = $_SESSION['id'] ?? null;
@@ -57,7 +57,7 @@ function fetchUserDataByUsername($mysqli, $username) {
 
 function fetchUserSnippets($mysqli, $userId) {
     $snippets = [];
-    $sql = "SELECT share_id, title, language, created_at, view_count FROM codes WHERE user_id = ? ORDER BY created_at DESC";
+    $sql = "SELECT share_id, title, language, created_at, views FROM codes WHERE user_id = ? ORDER BY created_at DESC";
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->bind_param("i", $userId);
         $stmt->execute();
@@ -183,7 +183,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
     $username = htmlspecialchars($user['display_name'] ?? $user['username']);
     $profilePic = getProfilePicture($user['profile_picture'], $user['username']);
     $bannerUrl = getBannerUrl($user['thumbnail']);
-    
+
     echo "<div class='relative overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl mb-8' style='animation: slideInUp 0.8s ease-out;'>
         <div class='relative h-64 md:h-80 overflow-hidden'>
             <div class='absolute inset-0' style='background-image: url(\"{$bannerUrl}\"); background-size: cover; background-position: center;'></div>
@@ -191,23 +191,25 @@ function renderProfileHeader($user, $social_links, $is_owner) {
             <div class='absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-pink-500/20'></div>
         </div>
         <div class='relative px-8 pb-8 -mt-20 md:-mt-24'>
-            <div class='flex flex-col md:flex-row items-center md:items-end gap-6'>
-                <div class='relative group'>
+            <div class='flex flex-col md:flex-row items-center md:items-center gap-6'>
+                <div class='relative group flex-shrink-0'>
                     <img src='{$profilePic}' alt='{$username}' class='w-36 h-36 md:w-44 md:h-44 rounded-3xl border-6 border-white dark:border-slate-800 shadow-2xl transition-transform duration-500 group-hover:scale-105'>
                     <div class='absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
                 </div>
-                <div class='flex-1 text-center md:text-left space-y-3'>
-                    <div class='flex items-center justify-center md:justify-start gap-3'>
-                        <h1 class='text-4xl md:text-5xl font-black bg-gradient-to-r from-slate-800 via-slate-700 to-slate-800 dark:from-white dark:via-slate-100 dark:to-white bg-clip-text text-transparent'>
-                            {$username}
-                        </h1>
-                        " . ($user['is_verified'] ? renderVerifiedBadge('w-8 h-8') : '') . "
+                <div class='flex-1 min-w-0'>
+                    <div class='text-center md:text-left space-y-3 p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg'>
+                        <div class='flex items-center justify-center md:justify-start gap-3'>
+                            <h1 class='text-4xl md:text-5xl font-black text-white'>
+                                {$username}
+                            </h1>
+                            " . ($user['is_verified'] ? renderVerifiedBadge('w-8 h-8') : '') . "
+                        </div>
+                        <p class='text-slate-300 dark:text-slate-400 text-lg font-medium'>@".htmlspecialchars($user['username'])."</p>
+                        <p class='text-slate-200 dark:text-slate-300 max-w-2xl leading-relaxed'>".nl2br(htmlspecialchars($user['bio']))."</p>
                     </div>
-                    <p class='text-slate-500 dark:text-slate-400 text-lg font-medium'>@".htmlspecialchars($user['username'])."</p>
-                    <p class='text-slate-600 dark:text-slate-300 max-w-2xl leading-relaxed'>".nl2br(htmlspecialchars($user['bio']))."</p>
                 </div>
                 " . ($is_owner ? "
-                <button onclick=\"document.getElementById('edit-profile-modal').classList.remove('hidden')\" class='px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105'>
+                <button onclick=\"document.getElementById('edit-profile-modal').classList.remove('hidden')\" class='flex-shrink-0 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105'>
                     <svg class='w-5 h-5 inline-block mr-2' fill='currentColor' viewBox='0 0 20 20'>
                         <path d='M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z'/>
                     </svg>
@@ -224,7 +226,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $view_mode === 'profile' ? htmlspecialchars($page_data['user']['display_name'] ?? $page_data['user']['username']) . ' - Profile' : 'CSC Leaderboard'; ?></title>
+    <title><?php echo $view_mode === 'profile' ? htmlspecialchars($page_data['user']['display_name'] ?? $page_data['user']['username']) . ' - Profile' : 'Codify Leaderboard'; ?></title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
@@ -407,9 +409,9 @@ function renderProfileHeader($user, $social_links, $is_owner) {
         <?php if ($view_mode === 'leaderboard'): ?>
             <header class="text-center mb-16 space-y-6" style="animation: slideInUp 0.8s ease-out;">
                 <div class="floating">
-                    <a href="/" class="inline-block no-underline group">
+                    <a href="index.php" class="inline-block no-underline group">
                         <h1 class="text-6xl md:text-7xl font-black mb-4">
-                            <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">CSC</span>
+                            <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">Codify</span>
                             <span class="text-slate-800 dark:text-white ml-4">Leaderboard</span>
                         </h1>
                     </a>
@@ -448,7 +450,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
             </section>
         <?php else: ?>
             <nav class="mb-8" style="animation: slideInLeft 0.6s ease-out;">
-                <a href="/leaderboard" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 shadow-lg">
+                <a href="leaderboard.php" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 shadow-lg">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                     </svg>
@@ -460,14 +462,14 @@ function renderProfileHeader($user, $social_links, $is_owner) {
 
             <main class="space-y-8" style="animation: slideInUp 0.8s ease-out 0.2s both;">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                    <h2 class="text-3xl font-bold text-white">
                         Shared Snippets
                     </h2>
                     <div class="flex items-center gap-2 px-4 py-2 glass-effect rounded-2xl">
-                        <svg class="w-5 h-5 text-slate-500" fill="currentColor" viewBox="0 0 20 20">
+                        <svg class="w-5 h-5 text-slate-300" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
                         </svg>
-                        <span class="text-sm font-medium text-slate-600 dark:text-slate-400"><?= count($page_data['snippets']) ?> snippets</span>
+                        <span class="text-sm font-medium text-slate-200 dark:text-slate-400"><?= count($page_data['snippets']) ?> snippets</span>
                     </div>
                 </div>
 
@@ -478,8 +480,8 @@ function renderProfileHeader($user, $social_links, $is_owner) {
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                             </svg>
                         </div>
-                        <h3 class="text-2xl font-bold text-slate-600 dark:text-slate-300 mb-4">No code snippets yet</h3>
-                        <p class="text-slate-500 dark:text-slate-400 text-lg">This developer hasn't shared any code snippets with the community yet.</p>
+                        <h3 class="text-2xl font-bold text-slate-300 mb-4">No code snippets yet</h3>
+                        <p class="text-slate-400 text-lg">This developer hasn't shared any code snippets with the community yet.</p>
                     </div>
                 <?php else: ?>
                     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -487,7 +489,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
                             <div class="group glass-effect rounded-2xl p-6 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25" style="animation: slideInUp 0.6s ease-out <?= $index * 100 ?>ms both;">
                                 <div class="flex items-start justify-between mb-4">
                                     <div class="flex-1">
-                                        <h3 class="font-bold text-lg text-slate-800 dark:text-white mb-2 line-clamp-2"><?= htmlspecialchars($snippet['title']) ?></h3>
+                                        <h3 class="font-bold text-lg text-white mb-2 line-clamp-2"><?= htmlspecialchars($snippet['title']) ?></h3>
                                         <div class="flex items-center gap-2 mb-3">
                                             <span class="px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-semibold rounded-full">
                                                 <?= htmlspecialchars($snippet['language']) ?>
@@ -502,14 +504,14 @@ function renderProfileHeader($user, $social_links, $is_owner) {
                                 </div>
 
                                 <div class="space-y-3 mb-6">
-                                    <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                    <div class="flex items-center gap-2 text-sm text-slate-400">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                             <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
                                             <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
                                         </svg>
-                                        <span><?= number_format($snippet['view_count']) ?> views</span>
+                                        <span><?= number_format($snippet['views']) ?> views</span>
                                     </div>
-                                    <div class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                    <div class="flex items-center gap-2 text-sm text-slate-400">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
                                         </svg>
@@ -517,7 +519,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
                                     </div>
                                 </div>
 
-                                <a href="/view?id=<?= $snippet['share_id'] ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 group-hover:scale-105 shadow-lg">
+                                <a href="view.php?id=<?= $snippet['share_id'] ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 group-hover:scale-105 shadow-lg">
                                     <span>View Code</span>
                                     <svg class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
@@ -530,6 +532,7 @@ function renderProfileHeader($user, $social_links, $is_owner) {
             </main>
         <?php endif; ?>
     </div>
+
 
     <?php if ($view_mode === 'profile' && $page_data['is_owner']): ?>
     <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4" onclick="event.target === this && this.classList.add('hidden')">

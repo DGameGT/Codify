@@ -2,7 +2,7 @@
 require_once "includes/db.php";
 require_once "includes/functions.php";
 
-session_start();
+// session_start();
 
 $auth_err = "";
 $form_action = "register";
@@ -41,7 +41,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 $_SESSION["loggedin"] = true;
                 $_SESSION["id"] = $stmt_insert->insert_id;
                 $_SESSION["username"] = $username;
-                header("location: /dashboard");
+                header("location: dashboard.php");
                 exit;
             } else {
                 $auth_err = "Something went wrong. Please try again.";
@@ -65,7 +65,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $_SESSION["id"] = $id;
                     $_SESSION["username"] = $db_username;
                     $_SESSION["profile_picture"] = $profile_picture;
-                    header("location: /dashboard");
+                    header("location: dashboard.php");
                     exit;
                 }
             }
@@ -134,7 +134,7 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSC - Code Sharing Platform for Developers</title>
+    <title>Codify - Code Sharing Platform</title>
     <meta name="description" content="An open-source platform to share, discover, and securely store code snippets in the cloud.">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css">
@@ -218,18 +218,28 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
 <body>
     <div class="container">
         <header class="page-header">
-            <a href="/" class="logo">CSC<span>.</span></a>
-            <?php if (isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true): ?>
-                <div class="user-profile">
-                    <button class="profile-btn" id="profile-btn">
-                        <img src="/db/profile/<?php echo htmlspecialchars($_SESSION['profile_picture'] ?? 'default.png'); ?>" alt="User Avatar">
-                        <span><?php echo htmlspecialchars($_SESSION["username"]); ?></span>
-                    </button>
+            <a href="index.php" class="logo">Codify<span>.</span></a>
+            <?php 
+if (isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true): 
+    // Tambahkan kode ini untuk mengambil data user terbaru
+    $stmt_user_pp = $mysqli->prepare("SELECT profile_picture FROM users WHERE id = ?");
+    $stmt_user_pp->bind_param("i", $_SESSION['id']);
+    $stmt_user_pp->execute();
+    $user_pp_result = $stmt_user_pp->get_result()->fetch_assoc();
+    $profile_picture = $user_pp_result['profile_picture'] ?? 'default.png';
+    $stmt_user_pp->close();
+?>
+    <div class="user-profile">
+        <button class="profile-btn" id="profile-btn">
+            <img src="db/profile/<?php echo htmlspecialchars($profile_picture); ?>" alt="User Avatar">
+            <span><?php echo htmlspecialchars($_SESSION["username"]); ?></span>
+        </button>
                     <div class="profile-dropdown" id="profile-dropdown">
-                        <a href="/dashboard">Dashboard</a>
-                        <a href="/profile">Settings</a>
+                        <a href="dashboard.php">Dashboard</a>
+                        <a href="profile.php">Settings</a>
+                        <a href="leaderboard.php">Leaderboard</a>
                         <div class="dropdown-divider"></div>
-                        <a href="/logout.php">Logout</a>
+                        <a href="logout.php">Logout</a>
                     </div>
                 </div>
             <?php else: ?>
@@ -239,21 +249,21 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
 
         <main>
             <section class="hero">
-                <h1>The Ultimate Platform for Code Snippets</h1>
-                <p>Share, discover, and save your code snippets. Powered by a growing community of developers.</p>
+                <h1>Codify | Your Code Deserves Better.</h1>
+                <p>Built for developers who lead, Codify delivers a smarter way to share, scale, and stand out.</p>
             </section>
 
             <section class="snippets-grid">
                 <?php foreach ($snippets as $index => $snippet): ?>
-                    <div class="snippet-card" data-href="/view?id=<?php echo htmlspecialchars($snippet['share_id']); ?>" style="animation-delay: <?php echo $index * 50; ?>ms;">
+                    <div class="snippet-card" data-href="view.php?id=<?php echo htmlspecialchars($snippet['share_id']); ?>" style="animation-delay: <?php echo $index * 50; ?>ms;">
                         <div class="card-preview">
                             <pre><code class="language-<?php echo htmlspecialchars($snippet['language']); ?>"><?php echo htmlspecialchars(mb_strimwidth($snippet['code_content'], 0, 250, "...")); ?></code></pre>
                         </div>
                         <div class="card-content">
-                            <h3 class="card-title"><a href="/view?id=<?php echo htmlspecialchars($snippet['share_id']); ?>"><?php echo htmlspecialchars($snippet['title']); ?></a></h3>
+                        <h3 class="card-title"><a href="view.php?id=<?php echo htmlspecialchars($snippet['share_id']); ?>"><?php echo htmlspecialchars($snippet['title']); ?></a></h3>
                             <div class="card-footer">
                                 <div class="card-user">
-                                    <img src="/db/profile/<?php echo htmlspecialchars($snippet['profile_picture'] ?? 'default.png'); ?>" alt="User Avatar">
+                                <img src="db/profile/<?php echo htmlspecialchars($snippet['profile_picture'] ?? 'default.png'); ?>" alt="User Avatar">
                                     <span class="user-info">
                                         <?php echo htmlspecialchars($snippet['username']); ?>
                                         <?php if ($snippet['is_verified']): ?>
@@ -284,7 +294,7 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
         </main>
         
         <footer class="site-footer">
-            <p>&copy; <?php echo date("Y"); ?> CSC. Crafted by <a href="https://github.com/cloudkuimages" target="_blank" rel="noopener noreferrer">AlfiDev</a>.</p>
+            <p>&copy; <?php echo date("Y"); ?> Codify. Crafted by <a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer">DGXO</a>.</p>
         </footer>
     </div>
 
@@ -302,7 +312,7 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
                             <span><?php echo $auth_err; ?></span>
                         </div>
                     <?php endif; ?>
-                    <form action="/" method="post" novalidate>
+                    <form action="index.php" method="post" novalidate>
                         <input type="hidden" name="action" value="register">
                         <div class="input-group"><input type="text" name="username" class="form-control" placeholder="Username" required></div>
                         <div class="input-group"><input type="password" name="password" class="form-control" placeholder="Password" required></div>
@@ -316,7 +326,7 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
                             <span><?php echo $auth_err; ?></span>
                         </div>
                     <?php endif; ?>
-                    <form action="/" method="post" novalidate>
+                    <form action="index.php" method="post" novalidate>
                         <input type="hidden" name="action" value="login">
                         <div class="input-group"><input type="text" name="username" class="form-control" placeholder="Username" required></div>
                         <div class="input-group"><input type="password" name="password" class="form-control" placeholder="Password" required></div>

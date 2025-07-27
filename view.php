@@ -85,7 +85,7 @@ if (!empty($share_id)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $snippet ? htmlspecialchars($snippet['title']) : 'Snippet Not Found'; ?> - CSC</title>
+    <title><?php echo $snippet ? htmlspecialchars($snippet['title']) : 'Snippet Not Found'; ?> - Codify</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -235,7 +235,7 @@ if (!empty($share_id)) {
 </head>
 <body>
     <header class="page-header">
-        <a href="/" class="logo">CSC<span>.</span></a>
+    <a href="index.php" class="logo">Codify<span>.</span></a>
     </header>
 
     <div class="container">

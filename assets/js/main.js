@@ -1,3 +1,3 @@
 document.addEventListener('DOMContentLoaded', (event) => {
-    console.log('CSC Loaded - By AlfiDev');
+    console.log('Codify Loaded - By DGXO');
 });
