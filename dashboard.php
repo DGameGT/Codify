@@ -3,7 +3,7 @@ require_once "includes/db.php";
 require_once "includes/functions.php";
 
 if (!isLoggedIn()) {
-    header("location: /login");
+    header("location: /");
     exit;
 }
 
@@ -29,34 +29,11 @@ function getSupportedLanguages() {
     return ['plaintext' => 'Plain Text', 'html' => 'HTML', 'css' => 'CSS', 'javascript' => 'JavaScript', 'typescript' => 'TypeScript', 'php' => 'PHP', 'python' => 'Python', 'java' => 'Java', 'csharp' => 'C#', 'cpp' => 'C++', 'c' => 'C', 'ruby' => 'Ruby', 'go' => 'Go', 'rust' => 'Rust', 'swift' => 'Swift', 'kotlin' => 'Kotlin', 'scala' => 'Scala', 'sql' => 'SQL', 'bash' => 'Bash', 'json' => 'JSON', 'yaml' => 'YAML', 'markdown' => 'Markdown', 'dockerfile' => 'Dockerfile', 'vue' => 'Vue', 'svelte' => 'Svelte', 'angularjs' => 'Angular'];
 }
 
-function getLanguageIconClass($language) {
-    $language = strtolower($language);
-    $map = ['csharp' => 'csharp', 'cpp' => 'cplusplus', 'html' => 'html5', 'css' => 'css3', 'dockerfile' => 'docker', 'sql' => 'mysql', 'vue' => 'vuejs', 'angularjs' => 'angularjs'];
-    $iconName = $map[$language] ?? $language;
-    return "devicon-{$iconName}-plain colored";
-}
-
 $user_id = $_SESSION['id'];
 $username = $_SESSION['username'];
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (isset($_POST['delete_selected_ids'])) {
-        $ids_to_delete_str = $_POST['delete_selected_ids'];
-        $ids_to_delete = array_filter(explode(',', $ids_to_delete_str));
-
-        if (!empty($ids_to_delete)) {
-            $placeholders = implode(',', array_fill(0, count($ids_to_delete), '?'));
-            $types = str_repeat('s', count($ids_to_delete)) . 'i';
-            $params = array_merge($ids_to_delete, [$user_id]);
-            
-            $sql_delete = "DELETE FROM codes WHERE share_id IN ($placeholders) AND user_id = ?";
-            if ($stmt_delete = $mysqli->prepare($sql_delete)) {
-                $stmt_delete->bind_param($types, ...$params);
-                $stmt_delete->execute();
-                $stmt_delete->close();
-            }
-        }
-    } elseif (isset($_POST['code_content'])) {
+    if (isset($_POST['code_content'])) {
         $title = trim($_POST['title']);
         $code_content = trim($_POST['code_content']);
         $language = trim($_POST['language']);
@@ -98,7 +75,7 @@ if ($stmt_user = $mysqli->prepare($sql_user)) {
 $profile_picture = $user_details['profile_picture'] ?? 'default.png';
 
 $codes_list = [];
-$sql_codes = "SELECT share_id, title, language, created_at FROM codes WHERE user_id = ? ORDER BY created_at DESC";
+$sql_codes = "SELECT share_id, title, language, created_at, views FROM codes WHERE user_id = ? ORDER BY created_at DESC";
 if ($stmt_codes = $mysqli->prepare($sql_codes)) {
     $stmt_codes->bind_param("i", $user_id);
     $stmt_codes->execute();
@@ -120,228 +97,272 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { 'primary': 'hsl(210, 40%, 98%)', 'background': 'hsl(222, 47%, 11%)', 'card': 'hsl(222, 47%, 14%)', 'card-foreground': 'hsl(210, 40%, 98%)', 'accent': { DEFAULT: 'hsl(200, 98%, 50%)', 'foreground': 'hsl(222, 47%, 11%)', }, 'border': 'hsl(222, 47%, 20%)', 'input': 'hsl(222, 47%, 18%)', 'muted': { DEFAULT: 'hsl(222, 47%, 25%)', 'foreground': 'hsl(215, 20%, 65%)', }, 'destructive': { DEFAULT: 'hsl(0, 72%, 51%)', 'foreground': 'hsl(210, 40%, 98%)' } }, fontFamily: { sans: ['Inter', 'sans-serif'], }, keyframes: { 'fade-in': { '0%': { opacity: '0' }, '100%': { opacity: '1' } }, 'scale-in': { '0%': { opacity: '0', transform: 'scale(0.95) translateY(10px)' }, '100%': { opacity: '1', transform: 'scale(1) translateY(0)' } } }, animation: { 'fade-in': 'fade-in 0.5s ease-out forwards', 'scale-in': 'scale-in 0.3s ease-out forwards', } }, }, };
-    </script>
-    <style>body { background-color: hsl(222, 47%, 11%); color: hsl(210, 40%, 98%); font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }</style>
-</head>
-<body x-data="{ isSidebarOpen: false, isProfileMenuOpen: false, isModalOpen: false, modalMode: 'new', currentSnippet: {} }">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Sora', sans-serif;
+            --font-mono: 'Fira Code', monospace;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: var(--font-sans); 
+            background-color: var(--bg-color);
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            transition: background-color .3s ease; 
+        }
 
-<div class="flex min-h-screen bg-background">
-    <div @click="isSidebarOpen = false" class="fixed inset-0 bg-black/60 z-30 md:hidden" x-show="isSidebarOpen" x-transition:enter="transition-opacity ease-in-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition-opacity ease-in-out duration-300" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"></div>
-    <aside class="fixed inset-y-0 left-0 z-40 w-64 bg-card/70 backdrop-blur-lg border-r border-border flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 flex" :class="{ 'translate-x-0': isSidebarOpen }">
-        <div class="p-4 border-b border-border flex justify-between items-center">
-            <a href="index.php" class="flex items-center gap-2.5 text-xl font-bold">
-                <span class="p-2 bg-accent rounded-lg text-accent-foreground flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-                </span>
-                <span>CodeShare</span>
-            </a>
-            <button @click="isSidebarOpen = false" class="p-2 text-muted-foreground md:hidden">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-        </div>
-        <nav class="flex-1 flex flex-col gap-2 p-4">
-            <a href="dashboard.php" class="flex items-center gap-3 px-3 py-2 text-primary bg-accent/20 border border-accent/30 rounded-lg transition-colors hover:bg-accent/30"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span>Dashboard</span></a>
-             <a href="docs.php" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-        <span>Docs</span>
-    </a>
-            <a href="leaderboard.php" class="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-primary transition-colors rounded-lg"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17h4v-2.34"/><path d="M12 9v5.66"/><path d="M8 12h8"/><path d="M12 18h.01"/></svg><span>Leaderboard</span></a>
-        </nav>
-        <div class="mt-auto p-2 border-t border-border relative">
-            <div @click="isProfileMenuOpen = !isProfileMenuOpen" class="group flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors">
-                <img src="db/profile/<?php echo htmlspecialchars($profile_picture); ?>" alt="Avatar" class="w-10 h-10 rounded-full object-cover transition-transform group-hover:scale-105">
-                <div class="flex-1 min-w-0"><p class="font-bold truncate"><?php echo htmlspecialchars($username); ?></p><p class="text-xs text-green-400">Online</p></div>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-muted-foreground transition-transform" :class="{ 'rotate-180': isProfileMenuOpen }" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+        .theme-glassmorphism {
+            --bg-color: #0d1117; --sidebar-bg: rgba(22, 27, 34, 0.7); --main-bg: transparent; --card-bg: rgba(34, 40, 49, 0.6); --modal-bg: rgba(22, 27, 34, 0.85); --border-color: rgba(139, 148, 158, 0.3); --text-primary: #c9d1d9; --text-secondary: #8b949e; --accent-glow: 0 0 15px rgba(38, 129, 255, 0.6); --accent-color: #2681ff; --hover-bg: rgba(56, 139, 253, 0.1);
+        }
+        .theme-neumorphism {
+            --bg-color: #e0e5ec; --sidebar-bg: #e0e5ec; --main-bg: #e0e5ec; --card-bg: #e0e5ec; --modal-bg: #e0e5ec; --border-color: transparent; --text-primary: #5c677b; --text-secondary: #9ba6b9; --accent-color: #4a7dff; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; --card-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); --button-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
+        }
+        .dark.theme-neumorphism {
+            --bg-color: #2c3038; --sidebar-bg: #2c3038; --main-bg: #2c3038; --card-bg: #2c3038; --modal-bg: #2c3038; --text-primary: #d0d3d8; --text-secondary: #7e8490; --accent-color: #5a8dff; --shadow-light: #363b44; --shadow-dark: #22252c;
+        }
+        .theme-hacker {
+            --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.8); --main-bg: transparent; --card-bg: rgba(10, 25, 47, 0.2); --modal-bg: #0a192f; --border-color: rgba(0, 255, 128, 0.3); --text-primary: #00ff80; --text-secondary: #00a354; --accent-color: #a855f7; --accent-glow: 0 0 12px rgba(168, 85, 247, 0.8);
+        }
+        .theme-minimal {
+            --bg-color: #111111; --sidebar-bg: #111111; --main-bg: #111111; --card-bg: #1C1C1C; --modal-bg: #222222; --border-color: #333; --text-primary: #f0f0f0; --text-secondary: #999; --accent-color: #3b82f6; --hover-bg: #2a2a2a;
+        }
+        .theme-hybrid {
+             --bg-color: #0a0a0a; --sidebar-bg: rgba(18, 18, 18, 0.7); --main-bg: transparent; --card-bg: rgba(26, 26, 26, 0.6); --modal-bg: #121212; --border-color: #2a2a2a; --text-primary: #e5e5e5; --text-secondary: #888; --accent-color: #00e0b8; --accent-glow: 0 0 15px rgba(0, 224, 184, 0.5); --shadow-light: #2c2c2c; --shadow-dark: #000000; --button-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
+        }
+
+        .theme-hacker { font-family: var(--font-mono); }
+        .theme-minimal { font-family: var(--font-serif); }
+        .bg-gradient-animate { background-size: 200% 200%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+        .bg-grid { background-image: linear-gradient(var(--border-color) 1px, transparent 1px), linear-gradient(to right, var(--border-color) 1px, transparent 1px); background-size: 2rem 2rem; }
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body x-data='{
+    theme: localStorage.getItem("theme") || "theme-glassmorphism",
+    setTheme(t) { this.theme = t; localStorage.setItem("theme", t); },
+    isSidebarOpen: window.innerWidth > 768,
+    isProfileMenuOpen: false,
+    isModalOpen: false,
+    modalMode: "new",
+    currentSnippet: {},
+    allSnippets: <?php echo json_encode($codes_list); ?>,
+    searchQuery: "",
+    get filteredSnippets() {
+        if (!this.searchQuery) return this.allSnippets;
+        return this.allSnippets.filter(s => s.title.toLowerCase().includes(this.searchQuery.toLowerCase()));
+    },
+    async openEditModal(shareId) {
+        try {
+            const response = await fetch(`get_code_details.php?id=${shareId}`);
+            if (!response.ok) throw new Error("Network response error.");
+            const data = await response.json();
+            if (data.error) { alert(data.error); return; }
+
+            this.currentSnippet = {
+                share_id: shareId,
+                title: data.title,
+                language: data.language,
+                code_content: data.code_content
+            };
+            this.modalMode = "edit";
+            this.isModalOpen = true;
+        } catch (error) {
+            console.error("Failed to fetch snippet:", error);
+            alert("Failed to load snippet data.");
+        }
+    }
+}'
+:class="theme"
+>
+<div class="fixed inset-0 -z-10 bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-purple-500/20 bg-gradient-animate" x-show="theme === 'theme-glassmorphism' || theme === 'theme-hybrid'"></div>
+<div class="fixed inset-0 -z-10 bg-black bg-grid" x-show="theme === 'theme-hacker'"></div>
+
+<div class="flex min-h-screen w-full">
+    <aside
+        class="fixed top-0 left-0 h-full z-40 transition-transform duration-300 ease-in-out w-[260px]"
+        :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        style="background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); backdrop-filter: blur(16px);"
+        :style="theme === 'theme-neumorphism' ? { boxShadow: 'var(--button-shadow)' } : {}"
+    >
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between h-16 px-6 border-b shrink-0" style="border-color: var(--border-color);">
+                <a href="#" class="flex items-center gap-2 text-xl font-bold" style="color: var(--text-primary);">Codify</a>
+                <button @click="isSidebarOpen = false" class="md:hidden" style="color:var(--text-secondary);">&times;</button>
             </div>
-            <div x-show="isProfileMenuOpen" @click.away="isProfileMenuOpen = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute bottom-full left-2 right-2 mb-2 w-auto bg-card border border-border rounded-lg shadow-xl" style="display: none;">
-                <a href="profile.php" class="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:bg-muted/30 hover:text-primary rounded-t-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
-                <a href="logout.php" class="flex items-center gap-3 px-3 py-2 text-sm text-destructive hover:bg-destructive/10 rounded-b-lg transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg><span>Sign Out</span></a>
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-primary); background-color: var(--hover-bg);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg> Dashboard</a>
+                <a href="docs.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> Docs</a>
+                <a href="leaderboard.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Leaderboard</a>
+            </nav>
+            <div class="p-4 border-t" style="border-color: var(--border-color);">
+                <div x-data="{
+                        themes: [
+                            { name: 'Glassmorphism', value: 'theme-glassmorphism'},
+                            { name: 'Neumorphism', value: 'theme-neumorphism' },
+                            { name: 'Cyber Hacker', value: 'theme-hacker' },
+                            { name: 'Minimal Dark', value: 'theme-minimal' },
+                            { name: 'Hybrid', value: 'theme-hybrid' }
+                        ],
+                        isOpen: false,
+                        currentThemeName() {
+                            return this.themes.find(t => t.value === theme).name;
+                        }
+                    }" class="relative">
+                    <button @click="isOpen = !isOpen" class="w-full flex items-center justify-between px-4 py-2 rounded-lg" style="color: var(--text-secondary); background-color: var(--card-bg);">
+                        <span x-text="currentThemeName()"></span>
+                        <span class="text-xs transition-transform" :class="{'rotate-180': isOpen}">&#9662;</span>
+                    </button>
+                    <div x-show="isOpen" @click.away="isOpen = false" x-cloak class="absolute bottom-full mb-2 w-full rounded-lg" style="background-color: var(--sidebar-bg); border: 1px solid var(--border-color);">
+                        <template x-for="t in themes">
+                            <a href="#" @click.prevent="setTheme(t.value); isOpen = false;" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);" x-text="t.name"></a>
+                        </template>
+                    </div>
+                </div>
             </div>
         </div>
     </aside>
 
-    <div class="flex-1 md:ml-64 flex flex-col">
-        <header class="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border bg-card/70 backdrop-blur-xl px-4 md:px-6">
-            <button @click="isSidebarOpen = true" class="md:hidden p-2 text-muted-foreground">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-            </button>
-            <div class="flex-1"></div>
+    <div class="flex-1 flex flex-col transition-all duration-300 ease-in-out" :class="{ 'md:ml-[260px]': isSidebarOpen }">
+        <header class="flex items-center justify-between h-16 px-6 shrink-0 border-b gap-4" style="background-color: var(--sidebar-bg); border-color: var(--border-color); backdrop-filter: blur(16px);">
             <div class="flex items-center gap-4">
-                <button @click="isModalOpen = true; modalMode = 'new'; $nextTick(() => document.getElementById('snippet-form').reset());" class="group inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-bold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 bg-accent text-accent-foreground hover:bg-accent/90 h-10 px-5 shadow-lg shadow-accent/20 hover:shadow-accent/30 hover:-translate-y-0.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-4 h-4 mr-2 transition-transform group-hover:rotate-90"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                    New Snippet
+                 <button @click="isSidebarOpen = !isSidebarOpen" style="color: var(--text-secondary);">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
+                <div class="relative hidden md:block">
+                    <input type="text" x-model="searchQuery" placeholder="Search snippets..."
+                        class="pl-10 pr-4 py-2 rounded-lg w-64 transition-all duration-300"
+                        :style="{
+                            'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)',
+                            'box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none',
+                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
+                            'color': 'var(--text-primary)'
+                        }"
+                    >
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-secondary);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button @click="isModalOpen = true; modalMode = 'new';"
+                    class="px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all duration-300"
+                    :style="{
+                        'color': theme === 'theme-neumorphism' ? 'var(--accent-color)' : '#fff',
+                        'background-color': theme === 'theme-neumorphism' ? 'var(--card-bg)' : 'var(--accent-color)',
+                        'box-shadow': theme === 'theme-neumorphism' || theme === 'theme-hybrid' ? 'var(--button-shadow)' : (theme.includes('hacker') || theme.includes('glassmorphism') || theme.includes('hybrid') ? 'var(--accent-glow)' : 'none'),
+                    }"
+                >+ New Snippet</button>
+
+                <div class="relative">
+                    <button @click="isProfileMenuOpen = !isProfileMenuOpen" class="flex items-center gap-2">
+                        <img src="db/profile/<?php echo htmlspecialchars($profile_picture); ?>" alt="Avatar" class="w-8 h-8 rounded-full">
+                        <span class="hidden md:inline" style="color: var(--text-primary);"><?php echo htmlspecialchars($username); ?> — Online</span>
+                    </button>
+                    <div x-show="isProfileMenuOpen" @click.away="isProfileMenuOpen = false" x-cloak
+                        class="absolute right-0 mt-2 w-48 rounded-lg shadow-lg py-1"
+                        style="background-color: var(--sidebar-bg); border: 1px solid var(--border-color);">
+                        <a href="profile.php" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);">Profile</a>
+                        <a href="logout.php" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);">Sign Out</a>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <main class="flex-1 p-4 md:p-6 lg:p-8 animate-fade-in" x-data="snippetManager()">
-            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-                <h1 class="text-3xl font-extrabold tracking-tight">My Snippets</h1>
-                <div class="flex items-center gap-2">
-                    <div class="relative w-full max-w-xs">
-                         <svg class="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        <input x-model="searchQuery" type="text" placeholder="Search snippets..." class="w-full h-10 pl-10 pr-4 rounded-md border border-border bg-input focus:ring-2 focus:ring-accent focus:border-accent outline-none transition-all">
-                    </div>
+        <main class="flex-1 p-6" style="background-color: var(--main-bg);">
+            <div class="flex items-center justify-between mb-6">
+                <h1 class="text-3xl font-bold" style="color: var(--text-primary);">My Snippets</h1>
+                <div class="relative md:hidden">
+                    <input type="text" x-model="searchQuery" placeholder="Search..."
+                        class="pl-10 pr-4 py-2 rounded-lg w-full transition-all duration-300"
+                        :style="{
+                            'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)',
+                            'box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none',
+                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
+                            'color': 'var(--text-primary)'
+                        }"
+                    >
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-secondary);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
             </div>
 
-            <form id="bulk-delete-form" method="POST" action="/dashboard" @submit.prevent="submitBulkDelete">
-                <input type="hidden" name="delete_selected_ids" x-model="selectedSnippets.join(',')">
-                <div class="rounded-xl border border-border bg-card/80">
-                    <div class="p-4 border-b border-border flex items-center justify-between" x-show="selectedSnippets.length > 0" x-transition>
-                        <span class="text-sm font-medium text-muted-foreground" x-text="`${selectedSnippets.length} selected`"></span>
-                        <button type="submit" class="inline-flex items-center justify-center rounded-md text-sm font-bold bg-destructive text-destructive-foreground h-9 px-4 hover:bg-destructive/90 transition-colors">
-                            <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            Delete Selected
-                        </button>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <template x-for="snippet in filteredSnippets" :key="snippet.share_id">
+                    <div
+                        class="rounded-2xl p-5 flex flex-col transition-all duration-300"
+                        :style="{
+                            'background-color': 'var(--card-bg)',
+                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
+                            'box-shadow': theme.includes('neumorphism') ? 'var(--button-shadow)' : 'none',
+                        }"
+                    >
+                        <h3 class="font-bold mb-2 truncate" style="color: var(--text-primary);" x-text="snippet.title"></h3>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="w-3 h-3 rounded-full" :style="{ backgroundColor: getLanguageInfo(snippet.language).color }"></span>
+                            <span class="text-sm capitalize" style="color: var(--text-secondary);" x-text="snippet.language"></span>
+                        </div>
+                        <p class="text-xs mb-auto" style="color: var(--text-secondary);">Uploaded on <span x-text="new Date(snippet.created_at).toLocaleDateString()"></span></p>
+                        <div class="flex items-center justify-end gap-2 mt-4">
+                            <button @click="openEditModal(snippet.share_id)" class="px-3 py-1 text-xs rounded-md" style="color: var(--text-secondary); background-color: var(--hover-bg);">Edit</button>
+                            <a :href="'view.php?id=' + snippet.share_id" class="px-3 py-1 text-xs rounded-md" style="color: #000; background-color: var(--accent-color);">View</a>
+                        </div>
                     </div>
-                    <?php if (empty($codes_list)): ?>
-                    <div class="text-center p-16 border-2 border-dashed border-border rounded-lg m-4">
-                        <svg class="mx-auto h-12 w-12 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 12" /></svg>
-                        <h3 class="mt-4 text-lg font-semibold">No Snippets Found</h3>
-                        <p class="text-muted-foreground mt-1">Click 'New Snippet' to create your first one.</p>
-                    </div>
-                    <?php else: ?>
-                    <div class="w-full overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="border-b border-border/50">
-                                <tr class="text-left text-muted-foreground">
-                                    <th class="p-4 w-12"><input type="checkbox" @change="toggleSelectAll($event.target.checked)" :checked="areAllSelected()" class="w-4 h-4 rounded border-border bg-input text-accent focus:ring-accent"></th>
-                                    <th class="p-4 font-semibold">Title</th>
-                                    <th class="p-4 font-semibold">Language</th>
-                                    <th class="p-4 font-semibold hidden md:table-cell">Uploaded</th>
-                                    <th class="p-4 font-semibold text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template x-for="code in filteredCodes" :key="code.share_id">
-                                    <tr class="border-b border-border/50 transition-all hover:bg-muted/30">
-                                        <td class="p-4"><input type="checkbox" :value="code.share_id" x-model="selectedSnippets" class="w-4 h-4 rounded border-border bg-input text-accent focus:ring-accent"></td>
-                                        <td class="p-4 font-bold text-primary" x-text="code.title"></td>
-                                        <td class="p-4">
-                                            <span class="inline-flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                                                <i :class="getLanguageIconClass(code.language)" class="text-lg"></i>
-                                                <span x-text="code.language.charAt(0).toUpperCase() + code.language.slice(1)"></span>
-                                            </span>
-                                        </td>
-                                        <td class="p-4 text-muted-foreground hidden md:table-cell" x-text="formatDate(code.created_at)"></td>
-                                        <td class="p-4 text-right">
-                                            <div class="flex justify-end items-center space-x-2">
-                                                <button type="button" @click="openEditModal(code.share_id)" class="inline-flex items-center justify-center rounded-md text-xs font-bold h-8 px-3 transition-colors hover:bg-muted hover:text-primary">Edit</button>
-                                                <a :href="'view.php?id=' + code.share_id" class="inline-flex items-center justify-center rounded-md text-xs font-bold h-8 px-3 transition-colors text-primary hover:bg-accent hover:text-accent-foreground">View</a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </form>
+                </template>
+            </div>
         </main>
     </div>
 </div>
 
-<div x-show="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" style="display: none;">
-    <div @click.away="isModalOpen = false" x-show="isModalOpen" x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" class="relative w-full max-w-2xl bg-card border border-border rounded-xl shadow-2xl m-4">
+<div x-show="isModalOpen" x-cloak class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" @keydown.escape.window="isModalOpen = false">
+    <div @click.away="isModalOpen = false"
+        class="w-full max-w-2xl rounded-2xl"
+        style="background-color: var(--modal-bg); border: 1px solid var(--border-color); backdrop-filter: blur(16px);"
+        x-show="isModalOpen"
+        x-transition:enter="ease-out duration-300" x-transition:enter-start="opacity-0 scale-90" x-transition:enter-end="opacity-100 scale-100"
+        x-transition:leave="ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-90"
+    >
         <form id="snippet-form" method="post" action="dashboard.php" class="p-6 space-y-4">
-            <input type="hidden" name="edit_share_id" id="edit-share-id-input" x-model="currentSnippet.share_id">
-            <div class="text-center mb-4">
-                <h2 class="text-2xl font-bold" x-text="modalMode === 'edit' ? 'Edit Snippet' : 'Share a New Snippet'"></h2>
-                <p class="text-sm text-muted-foreground" x-text="modalMode === 'edit' ? 'Update the details of your snippet.' : 'Fill the details and share your masterpiece.'"></p>
+             <input type="hidden" name="edit_share_id" x-model="currentSnippet.share_id">
+            <h2 class="text-xl font-bold" style="color: var(--text-primary);" x-text="modalMode === 'edit' ? 'Edit Snippet' : 'New Snippet'"></h2>
+            <div>
+                <label class="text-sm" style="color: var(--text-secondary);">Title</label>
+                <input type="text" name="title" x-model="currentSnippet.title" required class="w-full mt-1 p-2 rounded-lg" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
             </div>
             <div>
-                <label for="title" class="block text-sm font-medium mb-2">Title</label>
-                <input type="text" id="title-input" name="title" class="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus:ring-2 focus:ring-accent outline-none" placeholder="e.g., Database Connection" x-model="currentSnippet.title" required>
-            </div>
-            <div>
-                <label for="language" class="block text-sm font-medium mb-2">Language</label>
-                <select id="language-input" name="language" class="flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm focus:ring-2 focus:ring-accent outline-none" x-model="currentSnippet.language">
+                <label class="text-sm" style="color: var(--text-secondary);">Language</label>
+                <select name="language" x-model="currentSnippet.language" class="w-full mt-1 p-2 rounded-lg" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary);">
                     <?php foreach (getSupportedLanguages() as $value => $name) { echo "<option value=\"$value\">$name</option>"; } ?>
                 </select>
             </div>
             <div>
-                <label for="code_content" class="block text-sm font-medium mb-2">Code</label>
-                <textarea id="code-content-input" name="code_content" class="flex min-h-[180px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-accent outline-none" placeholder="Paste your code here..." x-model="currentSnippet.code_content" required></textarea>
+                <label class="text-sm" style="color: var(--text-secondary);">Code</label>
+                <textarea name="code_content" rows="10" x-model="currentSnippet.code_content" required class="w-full mt-1 p-2 rounded-lg font-mono text-sm" style="background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-primary);"></textarea>
             </div>
-            <div class="flex justify-end pt-4 gap-3">
-                <button type="button" @click="isModalOpen = false" class="h-10 px-4 py-2 rounded-md text-sm font-bold hover:bg-muted transition-colors">Cancel</button>
-                <button type="submit" class="inline-flex items-center justify-center rounded-md text-sm font-bold bg-accent text-accent-foreground h-10 px-6 hover:bg-accent/90 transition-transform hover:scale-105" x-text="modalMode === 'edit' ? 'Save Changes' : 'Share Now'"></button>
+            <div class="flex justify-end gap-4 pt-4">
+                <button type="button" @click="isModalOpen = false" class="px-4 py-2 rounded-lg" style="color: var(--text-secondary); background-color: var(--hover-bg);">Cancel</button>
+                <button type="submit" class="px-4 py-2 rounded-lg font-semibold" style="color: #000; background-color: var(--accent-color);" x-text="modalMode === 'edit' ? 'Save Changes' : 'Create Snippet'"></button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    function snippetManager() {
-        const allCodes = <?php echo json_encode($codes_list); ?>;
-        return {
-            searchQuery: '',
-            selectedSnippets: [],
-            codes: allCodes,
-            get filteredCodes() {
-                if (this.searchQuery === '') {
-                    return this.codes;
-                }
-                return this.codes.filter(code => {
-                    return code.title.toLowerCase().includes(this.searchQuery.toLowerCase());
-                });
-            },
-            areAllSelected() {
-                return this.filteredCodes.length > 0 && this.selectedSnippets.length === this.filteredCodes.length;
-            },
-            toggleSelectAll(checked) {
-                if (checked) {
-                    this.selectedSnippets = this.filteredCodes.map(c => c.share_id);
-                } else {
-                    this.selectedSnippets = [];
-                }
-            },
-            submitBulkDelete() {
-                if (this.selectedSnippets.length === 0) {
-                    alert('Please select at least one snippet to delete.');
-                    return;
-                }
-                if (confirm(`Are you sure you want to delete ${this.selectedSnippets.length} selected snippet(s)? This action cannot be undone.`)) {
-                    document.getElementById('bulk-delete-form').submit();
-                }
-            },
-            async openEditModal(shareId) {
-                try {
-                    const response = await fetch(`get_code_details.php?id=${shareId}`);
-                    if (!response.ok) throw new Error('Network response error.');
-                    const data = await response.json();
-                    if(data.error) { alert(data.error); return; }
-                    
-                    this.currentSnippet = {
-                        share_id: shareId,
-                        title: data.title,
-                        language: data.language,
-                        code_content: data.code_content
-                    };
-                    this.modalMode = 'edit';
-                    this.isModalOpen = true;
-                } catch (error) {
-                    console.error('Failed to fetch snippet:', error);
-                    alert('Failed to load snippet data.');
-                }
-            },
-            getLanguageIconClass(language) {
-                const lang = language.toLowerCase();
-                const map = {'csharp':'csharp','cpp':'cplusplus','html':'html5','css':'css3','dockerfile':'docker','sql':'mysql','vue':'vuejs','angularjs':'angularjs'};
-                const iconName = map[lang] || lang;
-                return `devicon-${iconName}-plain colored`;
-            },
-            formatDate(dateString) {
-                const options = { year: 'numeric', month: 'short', day: 'numeric' };
-                return new Date(dateString).toLocaleDateString('en-US', options);
-            }
+    function getLanguageInfo(language) {
+        if (!language) return { color: '#A8B7C5' };
+        const lang = language.toLowerCase();
+        const map = {
+            'javascript': { color: '#F7DF1E' }, 'typescript': { color: '#3178C6' },
+            'python': { color: '#3776AB' }, 'html': { color: '#E34F26' },
+            'css': { color: '#1572B6' }, 'php': { color: '#777BB4' },
+            'csharp': { color: '#239120' }, 'cpp': { color: '#00599C' },
+            'java': { color: '#007396' }, 'go': { color: '#00ADD8' },
+            'sql': { color: '#4479A1' }, 'vue': { color: '#4FC08D' }
         };
+        return map[lang] || { color: '#A8B7C5' };
     }
 </script>
+
 </body>
 </html>
