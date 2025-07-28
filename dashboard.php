@@ -190,7 +190,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
     >
         <div class="flex flex-col h-full">
             <div class="flex items-center justify-between h-16 px-6 border-b shrink-0" style="border-color: var(--border-color);">
-                <a href="#" class="flex items-center gap-2 text-xl font-bold" style="color: var(--text-primary);">Codify</a>
+                <a href="index.php" class="flex items-center gap-2 text-xl font-bold" style="color: var(--text-primary);">Codify</a>
                 <button @click="isSidebarOpen = false" class="md:hidden" style="color:var(--text-secondary);">&times;</button>
             </div>
             <nav class="flex-1 px-4 py-6 space-y-2">

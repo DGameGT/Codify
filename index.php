@@ -294,7 +294,7 @@ if (isset($_SESSION["loggedin"]) && $_SESSION["loggedin"] === true):
         </main>
         
         <footer class="site-footer">
-            <p>&copy; <?php echo date("Y"); ?> Codify. Crafted by <a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer">DGXO</a>.</p>
+            <p>&copy; <?php echo date("Y"); ?> Codify. All intellectual property rights reserved. Built and owned by <a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer">DGXO</a>.</p>
         </footer>
     </div>
 
