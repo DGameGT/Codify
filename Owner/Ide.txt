@@ -1,0 +1,44 @@
+### Ide 1: Fitur Interaksi & Komunitas (Paling Prioritas)
+
+Ini akan membuat platform terasa lebih hidup dan mendorong pengguna untuk kembali.
+
+* **Sistem Komentar di Snippet**: Izinkan pengguna lain untuk bertanya atau memberikan masukan pada halaman `view.php`. Ini adalah fitur standar yang sangat berguna.
+* **Tombol "Like" atau "Star"**: Cara mudah bagi pengguna untuk menandai *snippet* yang mereka sukai. Jumlah *like* bisa menjadi salah satu faktor untuk *ranking* di *leaderboard*.
+* **Feed Aktivitas**: Buat sebuah halaman "Feed" di *dashboard* yang menampilkan *snippet-snippet* terbaru dari orang yang di-*follow* oleh pengguna.
+
+---
+
+### Ide 2: Peningkatan Fitur Snippet
+
+Ini akan membuat fitur inti dari Codify menjadi lebih kuat dan fungsional.
+
+* **Snippet Privat / Rahasia**: Berikan opsi kepada pengguna untuk membuat *snippet* yang hanya bisa dilihat oleh mereka sendiri, atau oleh orang yang memiliki *link*-nya saja.
+* **Sistem "Fork" atau "Clone"**: Izinkan pengguna untuk menyalin *snippet* milik orang lain ke akun mereka sendiri. Ini sangat berguna jika mereka ingin mengembangkannya lebih lanjut.
+* **Tagging / Kategori**: Biarkan pengguna menambahkan *tag* (contoh: `javascript`, `api`, `bugfix`) pada *snippet* mereka agar lebih mudah dicari dan dikelompokkan.
+* **Riwayat Versi (Version History)**: Simpan versi lama dari sebuah *snippet* setiap kali diedit, sehingga pengguna bisa melihat riwayat perubahannya.
+
+---
+
+### Ide 3: Gamifikasi & Motivasi
+
+Ini akan membuat pengguna lebih termotivasi untuk aktif di platform.
+
+* **Sistem Lencana (Badges/Achievements)**: Berikan lencana untuk pencapaian tertentu. Misalnya:
+    * **"First Code"**: Saat pertama kali memposting *snippet*.
+    * **"Rising Star"**: Saat *snippet* mendapatkan 10 *likes*.
+    * **"Community Helper"**: Saat memberikan 10 komentar yang membangun.
+    * **"Influencer"**: Saat mendapatkan 25 *followers*.
+* **Snippet of the Week**: Fitur di halaman utama yang menampilkan *snippet* terbaik atau terpopuler setiap minggunya.
+Juga gelar(title) tapi khusus akun owner/moderator/admin ada fiturnya
+kek
+kalo owner jelas di bagian web settings(bikin tombol web settings)
+ada kek
+tambahkan gelar
+tambahkan achievement, semisalkan aku mau nambahin gelar atau achievement baru, dll
+ada foto gelarnya, nama gelarnya, warna gelar, dll
+buat penyimpanan gelar konsepnya kaya discord?(kalo dari aku) atau ada saran lagi ga?
+terus ya intinya owner pegang semua opsi
+owner doang yang bisa bikin akun orang verified, sistem gabisa secara otomatis kasih verified, dan juga jadiin akun orang admin/mod engga sembarangan
+di web settings owner juga ada
+buat admin ini dikasih akses apa aja, mod ini dikasih akses apa aja, pake centng? atau gimana, saran aja dri masha
+terus ada opsi buat all admin/mod juga
