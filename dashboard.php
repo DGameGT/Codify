@@ -32,6 +32,18 @@ function getSupportedLanguages() {
 $user_id = $_SESSION['id'];
 $username = $_SESSION['username'];
 
+// --- TAMBAHAN BARU: Mengambil role pengguna yang sedang login ---
+$user_role = '';
+$stmt_role = $mysqli->prepare("SELECT role FROM users WHERE id = ?");
+$stmt_role->bind_param("i", $user_id);
+$stmt_role->execute();
+$result_role = $stmt_role->get_result();
+if ($user = $result_role->fetch_assoc()) {
+    $user_role = $user['role'];
+}
+$stmt_role->close();
+// --- AKHIR TAMBAHAN BARU ---
+
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if (isset($_POST['code_content'])) {
         $title = trim($_POST['title']);
@@ -114,25 +126,12 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
             transition: background-color .3s ease; 
         }
 
-        .theme-glassmorphism {
-            --bg-color: #0d1117; --sidebar-bg: rgba(22, 27, 34, 0.7); --main-bg: transparent; --card-bg: rgba(34, 40, 49, 0.6); --modal-bg: rgba(22, 27, 34, 0.85); --border-color: rgba(139, 148, 158, 0.3); --text-primary: #c9d1d9; --text-secondary: #8b949e; --accent-glow: 0 0 15px rgba(38, 129, 255, 0.6); --accent-color: #2681ff; --hover-bg: rgba(56, 139, 253, 0.1);
-        }
-        .theme-neumorphism {
-            --bg-color: #e0e5ec; --sidebar-bg: #e0e5ec; --main-bg: #e0e5ec; --card-bg: #e0e5ec; --modal-bg: #e0e5ec; --border-color: transparent; --text-primary: #5c677b; --text-secondary: #9ba6b9; --accent-color: #4a7dff; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; --card-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); --button-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light);
-        }
-        .dark.theme-neumorphism {
-            --bg-color: #2c3038; --sidebar-bg: #2c3038; --main-bg: #2c3038; --card-bg: #2c3038; --modal-bg: #2c3038; --text-primary: #d0d3d8; --text-secondary: #7e8490; --accent-color: #5a8dff; --shadow-light: #363b44; --shadow-dark: #22252c;
-        }
-        .theme-hacker {
-            --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.8); --main-bg: transparent; --card-bg: rgba(10, 25, 47, 0.2); --modal-bg: #0a192f; --border-color: rgba(0, 255, 128, 0.3); --text-primary: #00ff80; --text-secondary: #00a354; --accent-color: #a855f7; --accent-glow: 0 0 12px rgba(168, 85, 247, 0.8);
-        }
-        .theme-minimal {
-            --bg-color: #111111; --sidebar-bg: #111111; --main-bg: #111111; --card-bg: #1C1C1C; --modal-bg: #222222; --border-color: #333; --text-primary: #f0f0f0; --text-secondary: #999; --accent-color: #3b82f6; --hover-bg: #2a2a2a;
-        }
-        .theme-hybrid {
-             --bg-color: #0a0a0a; --sidebar-bg: rgba(18, 18, 18, 0.7); --main-bg: transparent; --card-bg: rgba(26, 26, 26, 0.6); --modal-bg: #121212; --border-color: #2a2a2a; --text-primary: #e5e5e5; --text-secondary: #888; --accent-color: #00e0b8; --accent-glow: 0 0 15px rgba(0, 224, 184, 0.5); --shadow-light: #2c2c2c; --shadow-dark: #000000; --button-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light);
-        }
-
+        .theme-glassmorphism { --bg-color: #0d1117; --sidebar-bg: rgba(22, 27, 34, 0.7); --main-bg: transparent; --card-bg: rgba(34, 40, 49, 0.6); --modal-bg: rgba(22, 27, 34, 0.85); --border-color: rgba(139, 148, 158, 0.3); --text-primary: #c9d1d9; --text-secondary: #8b949e; --accent-glow: 0 0 15px rgba(38, 129, 255, 0.6); --accent-color: #2681ff; --hover-bg: rgba(56, 139, 253, 0.1); }
+        .theme-neumorphism { --bg-color: #e0e5ec; --sidebar-bg: #e0e5ec; --main-bg: #e0e5ec; --card-bg: #e0e5ec; --modal-bg: #e0e5ec; --border-color: transparent; --text-primary: #5c677b; --text-secondary: #9ba6b9; --accent-color: #4a7dff; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; --card-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); --button-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); }
+        .dark.theme-neumorphism { --bg-color: #2c3038; --sidebar-bg: #2c3038; --main-bg: #2c3038; --card-bg: #2c3038; --modal-bg: #2c3038; --text-primary: #d0d3d8; --text-secondary: #7e8490; --accent-color: #5a8dff; --shadow-light: #363b44; --shadow-dark: #22252c; }
+        .theme-hacker { --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.8); --main-bg: transparent; --card-bg: rgba(10, 25, 47, 0.2); --modal-bg: #0a192f; --border-color: rgba(0, 255, 128, 0.3); --text-primary: #00ff80; --text-secondary: #00a354; --accent-color: #a855f7; --accent-glow: 0 0 12px rgba(168, 85, 247, 0.8); }
+        .theme-minimal { --bg-color: #111111; --sidebar-bg: #111111; --main-bg: #111111; --card-bg: #1C1C1C; --modal-bg: #222222; --border-color: #333; --text-primary: #f0f0f0; --text-secondary: #999; --accent-color: #3b82f6; --hover-bg: #2a2a2a; }
+        .theme-hybrid { --bg-color: #0a0a0a; --sidebar-bg: rgba(18, 18, 18, 0.7); --main-bg: transparent; --card-bg: rgba(26, 26, 26, 0.6); --modal-bg: #121212; --border-color: #2a2a2a; --text-primary: #e5e5e5; --text-secondary: #888; --accent-color: #00e0b8; --accent-glow: 0 0 15px rgba(0, 224, 184, 0.5); --shadow-light: #2c2c2c; --shadow-dark: #000000; --button-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); }
         .theme-hacker { font-family: var(--font-mono); }
         .theme-minimal { font-family: var(--font-serif); }
         .bg-gradient-animate { background-size: 200% 200%; animation: gradient 15s ease infinite; }
@@ -161,7 +160,6 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
             if (!response.ok) throw new Error("Network response error.");
             const data = await response.json();
             if (data.error) { alert(data.error); return; }
-
             this.currentSnippet = {
                 share_id: shareId,
                 title: data.title,
@@ -194,10 +192,16 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                 <button @click="isSidebarOpen = false" class="md:hidden" style="color:var(--text-secondary);">&times;</button>
             </div>
             <nav class="flex-1 px-4 py-6 space-y-2">
-                <a href="#" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-primary); background-color: var(--hover-bg);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg> Dashboard</a>
+                <a href="dashboard.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-primary); background-color: var(--hover-bg);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg> Dashboard</a>
                 <a href="docs.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg> Docs</a>
                 <a href="leaderboard.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Leaderboard</a>
-            </nav>
+                <?php if (strtolower($user_role) === 'owner'): ?>
+                <a href="admin.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    Admin Panel
+                </a>
+                <?php endif; ?>
+                </nav>
             <div class="p-4 border-t" style="border-color: var(--border-color);">
                 <div x-data="{
                         themes: [
@@ -235,12 +239,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                 <div class="relative hidden md:block">
                     <input type="text" x-model="searchQuery" placeholder="Search snippets..."
                         class="pl-10 pr-4 py-2 rounded-lg w-64 transition-all duration-300"
-                        :style="{
-                            'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)',
-                            'box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none',
-                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
-                            'color': 'var(--text-primary)'
-                        }"
+                        :style="{'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)','box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none','border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)','color': 'var(--text-primary)'}"
                     >
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-secondary);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
@@ -249,11 +248,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
             <div class="flex items-center gap-4">
                 <button @click="isModalOpen = true; modalMode = 'new';"
                     class="px-4 py-2 rounded-lg font-semibold flex items-center gap-2 transition-all duration-300"
-                    :style="{
-                        'color': theme === 'theme-neumorphism' ? 'var(--accent-color)' : '#fff',
-                        'background-color': theme === 'theme-neumorphism' ? 'var(--card-bg)' : 'var(--accent-color)',
-                        'box-shadow': theme === 'theme-neumorphism' || theme === 'theme-hybrid' ? 'var(--button-shadow)' : (theme.includes('hacker') || theme.includes('glassmorphism') || theme.includes('hybrid') ? 'var(--accent-glow)' : 'none'),
-                    }"
+                    :style="{'color': theme === 'theme-neumorphism' ? 'var(--accent-color)' : '#fff','background-color': theme === 'theme-neumorphism' ? 'var(--card-bg)' : 'var(--accent-color)','box-shadow': theme === 'theme-neumorphism' || theme === 'theme-hybrid' ? 'var(--button-shadow)' : (theme.includes('hacker') || theme.includes('glassmorphism') || theme.includes('hybrid') ? 'var(--accent-glow)' : 'none'),}"
                 >+ New Snippet</button>
 
                 <div class="relative">
@@ -277,12 +272,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                 <div class="relative md:hidden">
                     <input type="text" x-model="searchQuery" placeholder="Search..."
                         class="pl-10 pr-4 py-2 rounded-lg w-full transition-all duration-300"
-                        :style="{
-                            'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)',
-                            'box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none',
-                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
-                            'color': 'var(--text-primary)'
-                        }"
+                        :style="{'background-color': theme === 'theme-neumorphism' ? 'transparent' : 'var(--card-bg)','box-shadow': theme === 'theme-neumorphism' ? 'var(--card-shadow)' : 'none','border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)','color': 'var(--text-primary)'}"
                     >
                     <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style="color: var(--text-secondary);" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                 </div>
@@ -292,11 +282,7 @@ if ($stmt_codes = $mysqli->prepare($sql_codes)) {
                 <template x-for="snippet in filteredSnippets" :key="snippet.share_id">
                     <div
                         class="rounded-2xl p-5 flex flex-col transition-all duration-300"
-                        :style="{
-                            'background-color': 'var(--card-bg)',
-                            'border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)',
-                            'box-shadow': theme.includes('neumorphism') ? 'var(--button-shadow)' : 'none',
-                        }"
+                        :style="{'background-color': 'var(--card-bg)','border': theme.includes('neumorphism') ? 'none' : '1px solid var(--border-color)','box-shadow': theme.includes('neumorphism') ? 'var(--button-shadow)' : 'none',}"
                     >
                         <h3 class="font-bold mb-2 truncate" style="color: var(--text-primary);" x-text="snippet.title"></h3>
                         <div class="flex items-center gap-2 mb-4">

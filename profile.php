@@ -2,8 +2,6 @@
 require_once "includes/db.php";
 require_once "includes/functions.php";
 
-// session_start();
-
 $viewed_username = $_GET['user'] ?? '';
 $current_user_logged_in = isLoggedIn();
 $is_owner = false;
@@ -29,7 +27,7 @@ if ($current_user_logged_in && isset($_SESSION['username']) && strtolower($viewe
     $is_owner = true;
 }
 
-$sql_user = "SELECT id, username, display_name, api_key, bio, profile_picture, thumbnail, is_verified, social_links FROM users WHERE username = ?";
+$sql_user = "SELECT id, uuid, username, display_name, role, api_key, bio, profile_picture, thumbnail, is_verified, social_links FROM users WHERE username = ?";
 if (!($stmt_user = $mysqli->prepare($sql_user))) die("Database query error: " . $mysqli->error);
 $stmt_user->bind_param("s", $viewed_username);
 $stmt_user->execute();
@@ -39,6 +37,29 @@ $stmt_user->close();
 if (!$user_data) {
     http_response_code(404);
     die("<h1>404 User Not Found</h1><p>The user you are looking for does not exist.</p>");
+}
+
+function getRoleBadge($role) {
+    $roles = [
+        'owner' => ['label' => 'Owner', 'color' => '#ef4444', 'icon' => 'fas fa-crown'],
+        'admin' => ['label' => 'Admin', 'color' => '#f97316', 'icon' => 'fas fa-shield-halved'],
+        'moderator' => ['label' => 'Moderator', 'color' => '#3b82f6', 'icon' => 'fas fa-gavel'],
+        'user' => ['label' => 'User', 'color' => '#8b5cf6', 'icon' => 'fas fa-user']
+    ];
+    return $roles[strtolower($role)] ?? $roles['user'];
+}
+$role_info = getRoleBadge($user_data['role']);
+
+$user_titles = [];
+$sql_titles = "SELECT t.name, t.color, t.icon FROM user_titles ut JOIN titles t ON ut.title_id = t.id WHERE ut.user_id = ?";
+if ($stmt_titles = $mysqli->prepare($sql_titles)) {
+    $stmt_titles->bind_param("i", $user_data['id']);
+    $stmt_titles->execute();
+    $result_titles = $stmt_titles->get_result();
+    while ($row = $result_titles->fetch_assoc()) {
+        $user_titles[] = $row;
+    }
+    $stmt_titles->close();
 }
 
 if (empty($user_data['api_key'])) {
@@ -81,91 +102,53 @@ if ($is_owner && $_SERVER["REQUEST_METHOD"] == "POST") {
     }
 
     if ($action === 'save_changes') {
-        $updates = [];
-        $params = [];
-        $types = '';
-        $errors = [];
+        $updates = []; $params = []; $types = ''; $errors = [];
 
-        $avatarDir = 'db/profile/';
-        if (!is_dir($avatarDir)) @mkdir($avatarDir, 0755, true);
-        
-        if (!is_writable($avatarDir)) {
-            $errors[] = "Avatar directory is not writable.";
-        } else {
-            if (!empty($_FILES['avatar_file']['name'])) {
-                $result = saveUploadedFile($_FILES['avatar_file'], $avatarDir, "user_{$user_data['id']}");
-                if (isset($result['success'])) {
-                    $updates[] = "profile_picture = ?"; $params[] = $result['filename']; $types .= 's';
-                } else { $errors[] = "Avatar Error: " . $result['error']; }
-            } elseif (isset($_POST['avatar_url']) && !empty(trim($_POST['avatar_url']))) {
-                $result = saveImageFromUrl(trim($_POST['avatar_url']), $avatarDir, "user_{$user_data['id']}");
-                if (isset($result['success'])) {
-                    $updates[] = "profile_picture = ?"; $params[] = $result['filename']; $types .= 's';
-                } else { $errors[] = "Avatar URL Error: " . $result['error']; }
-            }
+        $avatar_source = $_POST['avatar_source'] ?? 'file';
+        if ($avatar_source === 'file' && !empty($_FILES['avatar_file']['name'])) {
+            $avatarDir = 'db/profile/';
+            if (!is_dir($avatarDir)) @mkdir($avatarDir, 0755, true);
+            $result = saveUploadedFile($_FILES['avatar_file'], $avatarDir, "user_{$user_data['id']}");
+            if (isset($result['success'])) { $updates[] = "profile_picture = ?"; $params[] = $result['filename']; $types .= 's'; } 
+            else { $errors[] = "Avatar Error: " . $result['error']; }
+        } elseif ($avatar_source === 'url' && !empty(trim($_POST['avatar_url']))) {
+            $avatar_url = trim($_POST['avatar_url']);
+            if (filter_var($avatar_url, FILTER_VALIDATE_URL)) {
+                $updates[] = "profile_picture = ?"; $params[] = $avatar_url; $types .= 's';
+            } else { $errors[] = "Invalid Avatar URL."; }
         }
         
-        // --- Banner Handling ---
-        $bannerDir = 'db/thumbnails/';
-        if (!is_dir($bannerDir)) @mkdir($bannerDir, 0755, true);
-
-        if (!is_writable($bannerDir)) {
-            $errors[] = "Banner directory is not writable.";
-        } else {
-            if (!empty($_FILES['banner_file']['name'])) {
-                $result = saveUploadedFile($_FILES['banner_file'], $bannerDir, "thumb_user_{$user_data['id']}");
-                if (isset($result['success'])) {
-                    $updates[] = "thumbnail = ?"; $params[] = $result['filename']; $types .= 's';
-                } else { $errors[] = "Banner Error: " . $result['error']; }
-            } elseif (isset($_POST['banner_url']) && !empty(trim($_POST['banner_url']))) {
-                $result = saveImageFromUrl(trim($_POST['banner_url']), $bannerDir, "thumb_user_{$user_data['id']}");
-                if (isset($result['success'])) {
-                    $updates[] = "thumbnail = ?"; $params[] = $result['filename']; $types .= 's';
-                } else { $errors[] = "Banner URL Error: " . $result['error']; }
-            }
+        $banner_source = $_POST['banner_source'] ?? 'file';
+        if ($banner_source === 'file' && !empty($_FILES['banner_file']['name'])) {
+            $bannerDir = 'db/thumbnails/';
+            if (!is_dir($bannerDir)) @mkdir($bannerDir, 0755, true);
+            $result = saveUploadedFile($_FILES['banner_file'], $bannerDir, "thumb_user_{$user_data['id']}");
+            if (isset($result['success'])) { $updates[] = "thumbnail = ?"; $params[] = $result['filename']; $types .= 's'; } 
+            else { $errors[] = "Banner Error: " . $result['error']; }
+        } elseif ($banner_source === 'url' && !empty(trim($_POST['banner_url']))) {
+            $banner_url = trim($_POST['banner_url']);
+            if (filter_var($banner_url, FILTER_VALIDATE_URL)) {
+                $updates[] = "thumbnail = ?"; $params[] = $banner_url; $types .= 's';
+            } else { $errors[] = "Invalid Banner URL."; }
         }
 
-        // --- Other Fields ---
-        if (isset($_POST['display_name']) && trim($_POST['display_name']) !== $user_data['display_name']) {
-            $updates[] = "display_name = ?"; $params[] = trim($_POST['display_name']); $types .= 's';
-        }
-        if (isset($_POST['bio']) && trim($_POST['bio']) !== $user_data['bio']) {
-            $updates[] = "bio = ?"; $params[] = trim($_POST['bio']); $types .= 's';
-        }
-
-        if ($user_data['is_verified'] && isset($_POST['api_key'])) {
-            $custom_key = trim($_POST['api_key']);
-            if (!empty($custom_key) && $custom_key !== $user_data['api_key']) {
-                if (!preg_match('/^[a-zA-Z0-9_-]+$/', $custom_key)) {
-                    $errors[] = "API Key can only contain letters, numbers, underscores, and dashes.";
-                } else {
-                    $updates[] = "api_key = ?"; $params[] = $custom_key; $types .= 's';
-                }
-            }
-        }
+        if (isset($_POST['display_name']) && trim($_POST['display_name']) !== $user_data['display_name']) { $updates[] = "display_name = ?"; $params[] = trim($_POST['display_name']); $types .= 's'; }
+        if (isset($_POST['bio']) && trim($_POST['bio']) !== $user_data['bio']) { $updates[] = "bio = ?"; $params[] = trim($_POST['bio']); $types .= 's'; }
         
-        // FIXED: Replaced deprecated FILTER_SANITIZE_STRING with simple trim. Escaping is handled on output.
         $new_socials = [
-            'github'    => trim($_POST['github'] ?? ''),
-            'instagram' => trim($_POST['instagram'] ?? ''),
-            'youtube'   => trim($_POST['youtube'] ?? ''),
-            'website1'  => trim($_POST['website1'] ?? ''),
+            'github'    => trim($_POST['github'] ?? ''), 'instagram' => trim($_POST['instagram'] ?? ''),
+            'youtube'   => trim($_POST['youtube'] ?? ''), 'website1'  => trim($_POST['website1'] ?? ''),
             'website2'  => trim($_POST['website2'] ?? ''),
         ];
         if (json_encode(array_filter($new_socials)) !== $user_data['social_links']) {
-            $updates[] = "social_links = ?";
-            $params[] = json_encode(array_filter($new_socials));
-            $types .= 's';
+            $updates[] = "social_links = ?"; $params[] = json_encode(array_filter($new_socials)); $types .= 's';
         }
         
-        // --- Final Decision Logic ---
         if (!empty($errors)) {
-            $message = ["type" => "error", "text" => $errors[0]]; // Show the first error found
+            $message = ["type" => "error", "text" => $errors[0]];
         } elseif (!empty($updates)) {
             $sql_update = "UPDATE users SET " . implode(', ', $updates) . " WHERE id = ?";
-            $types .= 'i';
-            $params[] = $user_data['id'];
-
+            $types .= 'i'; $params[] = $user_data['id'];
             if (!($stmt_update = $mysqli->prepare($sql_update))) {
                 $message = ["type" => "error", "text" => "Database prepare error: " . $mysqli->error];
             } else {
@@ -179,29 +162,17 @@ if ($is_owner && $_SERVER["REQUEST_METHOD"] == "POST") {
                 $stmt_update->close();
             }
         } else {
-            // No changes were made, just refresh
             header("Location: profile?user=" . urlencode($user_data['username']));
             exit;
         }
     }
 }
-
-// Status messages from GET parameter
 if (isset($_GET['status'])) {
-    if ($_GET['status'] === 'updated') {
-        $message = ["type" => "success", "text" => "Profile updated successfully!"];
-    } elseif ($_GET['status'] === 'key_updated') {
-        $message = ["type" => "success", "text" => "API Key regenerated successfully!"];
-    }
+    if ($_GET['status'] === 'updated') { $message = ["type" => "success", "text" => "Profile updated successfully!"]; } 
+    elseif ($_GET['status'] === 'key_updated') { $message = ["type" => "success", "text" => "API Key regenerated successfully!"]; }
 }
 
-$social_icon_classes = [
-    'github'    => 'fab fa-github',
-    'instagram' => 'fab fa-instagram',
-    'youtube'   => 'fab fa-youtube',
-    'website1'  => 'fas fa-link',
-    'website2'  => 'fas fa-link',
-];
+$social_icon_classes = [ 'github' => 'fab fa-github', 'instagram' => 'fab fa-instagram', 'youtube' => 'fab fa-youtube', 'website1' => 'fas fa-link', 'website2' => 'fas fa-link'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -217,27 +188,40 @@ $social_icon_classes = [
         @keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
         *{margin:0;padding:0;box-sizing:border-box;}
         body{font-family:var(--font-sans);background-color:var(--bg-primary);color:var(--text-primary);text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased;}
-        .site-header{background-color:var(--bg-secondary);border-bottom:1px solid var(--border-color);padding:1rem 2rem;margin-bottom:2rem;}
-        .site-header a{color:var(--text-primary);text-decoration:none;font-size:1.5rem;font-weight:800;}
-        .container{max-width:1280px;margin:0 auto;padding:0 2rem;display:grid;grid-template-columns:380px 1fr;gap:2.5rem;}
+        .container{max-width:1280px;margin:2rem auto;padding:0 2rem;display:grid;grid-template-columns:380px 1fr;gap:2.5rem;}
         @media (max-width:1024px){.container{grid-template-columns:1fr;}.profile-sidebar{position:static;}}
-        @media (max-width:768px){.container{padding:0 1rem;gap:1.5rem;}.site-header{padding:1rem;margin-bottom:1rem;}.profile-name{font-size:1.5rem;}}
+        @media (max-width:768px){.container{padding:0 1rem;gap:1.5rem;}.profile-name{font-size:1.5rem;}}
         .profile-sidebar{position:sticky;top:2rem;height:fit-content;animation:fadeIn 0.5s var(--transition);}
         .profile-card{background-color:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;position:relative;}
         .profile-banner{height:140px;background-color:var(--bg-tertiary);}
         .profile-banner img{width:100%;height:100%;object-fit:cover;}
-        .profile-info{padding:1.5rem;text-align:center;margin-top:-60px;}
-        .profile-avatar{width:110px;height:110px;border-radius:50%;border:4px solid var(--bg-secondary);object-fit:cover;box-shadow:0 0 15px rgba(0,0,0,0.5);}
-        .profile-name{font-size:1.75rem;font-weight:700;margin-top:1rem;display:flex;align-items:center;justify-content:center;gap:0.5rem;}
+        .profile-info{padding:1.5rem;text-align:center;margin-top:-60px; position: relative;}
+        .profile-avatar{width:110px;height:110px;border-radius:50%;border:4px solid var(--bg-secondary);object-fit:cover;box-shadow:0 0 15px rgba(0,0,0,0.5); margin: 0 auto;}
+        .profile-name-container { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+        .profile-name{font-size:1.75rem;font-weight:700;}
+        .profile-name { margin-top: 1rem; }
+.profile-subtitle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 0.25rem;
+}
+.profile-username { margin: 0; }
+        .role-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.8rem; font-weight: 600; color: white; }
         .verified-badge{width:1.3rem;height:1.3rem;vertical-align:-0.2rem;display:inline-block;}
-        .profile-username{color:var(--text-secondary);margin-bottom:1rem;}
-        .profile-bio{color:var(--text-secondary);line-height:1.6;}
-        .social-links{padding:1rem 1.5rem;display:flex;justify-content:center;align-items:center;gap:1.25rem;border-top:1px solid var(--border-color);margin-top:1.5rem;}
-        .social-links a{color:var(--text-secondary);display:inline-block;transition:var(--transition);font-size:1.4rem;}
-        .social-links a:hover{color:var(--text-primary);transform:translateY(-2px);}
+        .profile-username{color:var(--text-secondary);margin-top:0.25rem; margin-bottom: 0.75rem;}
+        .uuid-container { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-secondary); background-color: var(--bg-tertiary); padding: 0.4rem 0.6rem; border-radius: 0.4rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+        .uuid-container button { background: none; border: none; color: var(--text-secondary); cursor: pointer; transition: color 0.2s; }
+        .uuid-container button:hover { color: var(--text-primary); }
+        .profile-bio{margin-top: 1.25rem; color:var(--text-secondary);line-height:1.6;}
+        .social-links{padding:1.25rem 1.5rem;display:flex;justify-content:center;gap:1.25rem;border-top:1px solid var(--border-color);margin-top:1.5rem;}
+        .social-links a{color:var(--text-secondary);font-size:1.4rem;transition:transform 0.2s;}.social-links a:hover{transform:translateY(-2px);}
+        .user-titles-container { margin-top: 1rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+        .user-title-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.8rem; border-radius: 0.5rem; font-size: 0.8rem; font-weight: 600; color: white; }
+        .user-title-badge img { width: 16px; height: 16px; object-fit: contain; }
         .settings-trigger{position:absolute;top:1rem;right:1rem;background:rgba(0,0,0,0.3);backdrop-filter:blur(5px);border:1px solid var(--border-color);color:var(--text-primary);cursor:pointer;border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:var(--transition);z-index:10;}
         .settings-trigger:hover{background:var(--accent-primary);border-color:var(--accent-primary);transform:rotate(45deg);}
-        .settings-trigger i{font-size:1rem;}
         .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);z-index:1000;display:none;align-items:center;justify-content:center;animation:fadeIn 0.3s;}
         .modal-overlay.active{display:flex;}
         .modal-content{background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:var(--radius);width:90%;max-width:600px;box-shadow:0 10px 30px rgba(0,0,0,0.5);animation:fadeIn 0.3s 0.1s backwards;display:flex;flex-direction:column;}
@@ -266,7 +250,7 @@ $social_icon_classes = [
         .snippet-card:before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;border-radius:var(--radius);border:1px solid transparent;background:radial-gradient(400px circle at var(--mouse-x) var(--mouse-y),var(--accent-glow),transparent 40%);z-index:0;opacity:0;transition:opacity 0.3s;}
         .snippet-card:hover:before{opacity:1;}
         .card-content{padding:1rem;z-index:1;flex-grow:1;display:flex;flex-direction:column;}
-        .snippet-card h3{font-size:1.2rem;font-weight:600;margin-bottom:0.25rem;}
+        .card-title{font-size:1.2rem;font-weight:600;margin-bottom:0.25rem;}
         .snippet-meta{color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem;}
         .snippet-preview{background-color:var(--bg-primary);border:1px solid var(--border-color);border-radius:0.5rem;overflow:hidden;font-size:0.8rem;margin-bottom:1rem;flex-grow:1;}
         .snippet-preview pre{margin:0;padding:0.75rem;}
@@ -305,12 +289,6 @@ $social_icon_classes = [
     </style>
 </head>
 <body>
-    <header class="site-header"><a href="/">Codify</a></header>
-    <div class="alert-container">
-        <?php if (!empty($message)): ?>
-            <div class="alert <?php echo htmlspecialchars($message['type']); ?>"><?php echo htmlspecialchars($message['text']); ?></div>
-        <?php endif; ?>
-    </div>
     <div class="container">
         <aside class="profile-sidebar">
             <div class="profile-card">
@@ -318,20 +296,65 @@ $social_icon_classes = [
                     <button class="settings-trigger" id="open-settings-modal" title="Profile Settings"><i class="fas fa-cog"></i></button>
                 <?php endif; ?>
                 <div class="profile-banner">
-                    <img id="banner-preview" src="db/thumbnails/<?php echo htmlspecialchars($user_data['thumbnail'] ?? 'default_banner.png'); ?>?t=<?php echo time(); ?>" alt="Banner">
+                    <?php
+                    $banner_src = 'db/thumbnails/default_banner.png';
+                    if (!empty($user_data['thumbnail'])) {
+                        if (filter_var($user_data['thumbnail'], FILTER_VALIDATE_URL)) {
+                            $banner_src = $user_data['thumbnail'];
+                        } else {
+                            $banner_src = 'db/thumbnails/' . $user_data['thumbnail'];
+                        }
+                    }
+                    ?>
+                    <img id="banner-preview" src="<?php echo htmlspecialchars($banner_src); ?>" alt="Banner">
                 </div>
                 <div class="profile-info">
-                    <img id="avatar-preview" src="db/profile/<?php echo htmlspecialchars($user_data['profile_picture'] ?? 'default_avatar.png'); ?>?t=<?php echo time(); ?>" alt="Avatar" class="profile-avatar">
+                    <?php
+                    $avatar_src = 'db/profile/default_avatar.png';
+                    if (!empty($user_data['profile_picture'])) {
+                        if (filter_var($user_data['profile_picture'], FILTER_VALIDATE_URL)) {
+                            $avatar_src = $user_data['profile_picture'];
+                        } else {
+                            $avatar_src = 'db/profile/' . $user_data['profile_picture'];
+                        }
+                    }
+                    ?>
+                    <img id="avatar-preview" src="<?php echo htmlspecialchars($avatar_src); ?>" alt="Avatar" class="profile-avatar">
                     <h1 class="profile-name">
-                        <?php echo htmlspecialchars(!empty($user_data['display_name']) ? $user_data['display_name'] : $user_data['username']); ?>
-                        <?php if ($user_data['is_verified']): ?>
-                           <svg class="verified-badge" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#3B82F6;"/><stop offset="100%" style="stop-color:#1D4ED8;"/></linearGradient></defs><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z" fill="url(#g)"/><path d="m8.5 12.5 2.5 3 5-6" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        <?php endif; ?>
-                    </h1>
-                    <p class="profile-username">@<?php echo htmlspecialchars($user_data['username']); ?></p>
+    <?php echo htmlspecialchars($user_data['display_name'] ?? $user_data['username']); ?>
+    <?php if ($user_data['is_verified']): ?>
+        <svg class="verified-badge" ...>...</svg> <?php endif; ?>
+</h1>
+
+<div class="profile-subtitle-container">
+    <p class="profile-username">@<?php echo htmlspecialchars($user_data['username']); ?></p>
+    <span class="role-badge" style="background-color: <?php echo $role_info['color']; ?>;"><i class="<?php echo $role_info['icon']; ?>"></i><span><?php echo $role_info['label']; ?></span></span>
+</div>
+                    
+                    <?php if (!empty($user_titles)): ?>
+    <div class="user-titles-container">
+        <?php foreach ($user_titles as $title): ?>
+            <span class="user-title-badge" style="background-color: <?php echo htmlspecialchars($title['color']); ?>;">
+                <?php
+                // Logika baru yang lebih pintar untuk mendeteksi URL
+                $icon_is_url = (strpos(trim($title['icon']), 'http') === 0);
+                $icon_is_local_file = strpos(trim($title['icon']), 'db/titles/') === 0;
+
+                if ($icon_is_url || $icon_is_local_file):
+                ?>
+                    <img src="<?php echo htmlspecialchars($title['icon']); ?>" alt="<?php echo htmlspecialchars($title['name']); ?>">
+                <?php elseif (!empty($title['icon'])): ?>
+                    <i class="<?php echo htmlspecialchars($title['icon']); ?>"></i>
+                <?php endif; ?>
+                <span><?php echo htmlspecialchars($title['name']); ?></span>
+            </span>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+
                     <p class="profile-bio" id="bio-preview"><?php echo !empty($user_data['bio']) ? nl2br(htmlspecialchars($user_data['bio'])) : 'No bio yet.'; ?></p>
                 </div>
-                <?php if (!empty(array_filter($social_links))): ?>
+                <?php if (!empty(array_filter((array)$social_links))): ?>
                 <div class="social-links">
                     <?php foreach ($social_links as $key => $value): if (!empty($value)):
                         $url = $value;
@@ -349,7 +372,7 @@ $social_icon_classes = [
                 <?php if (count($snippets) > 0): foreach ($snippets as $snippet): ?>
                     <div class="snippet-card" onmousemove="this.style.setProperty('--mouse-x', `${event.clientX - this.getBoundingClientRect().left}px`); this.style.setProperty('--mouse-y', `${event.clientY - this.getBoundingClientRect().top}px`);">
                          <a href="view.php?id=<?php echo htmlspecialchars($snippet['share_id']); ?>" class="card-content">
-                            <h3><?php echo htmlspecialchars($snippet['title']); ?></h3>
+                            <h3 class="card-title"><?php echo htmlspecialchars($snippet['title']); ?></h3>
                             <div class="snippet-meta"><time>Shared on <?php echo date("M d, Y, g:i A", strtotime($snippet['created_at'])); ?></time></div>
                             <div class="snippet-preview"><pre><code class="language-<?php echo htmlspecialchars($snippet['language']); ?>"><?php echo htmlspecialchars(substr($snippet['code_content'], 0, 200)) . (strlen($snippet['code_content']) > 200 ? '...' : ''); ?></code></pre></div>
                             <div class="card-footer">
@@ -374,29 +397,15 @@ $social_icon_classes = [
             </div>
             <form action="profile.php?user=<?php echo urlencode($user_data['username']); ?>" method="post" enctype="multipart/form-data">
                 <div class="modal-body">
-                    <div class="form-group">
-                        <label for="display-name-input">Display Name</label>
-                        <input type="text" id="display-name-input" name="display_name" class="form-control" placeholder="Your public name" value="<?php echo htmlspecialchars($user_data['display_name'] ?? ''); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label for="bio-input">Bio</label>
-                        <textarea id="bio-input" name="bio" class="form-control" rows="4" placeholder="Tell us about yourself..."><?php echo htmlspecialchars($user_data['bio'] ?? ''); ?></textarea>
-                    </div>
+                    <div class="form-group"><label for="display-name-input">Display Name</label><input type="text" id="display-name-input" name="display_name" class="form-control" placeholder="Your public name" value="<?php echo htmlspecialchars($user_data['display_name'] ?? ''); ?>"></div>
+                    <div class="form-group"><label for="bio-input">Bio</label><textarea id="bio-input" name="bio" class="form-control" rows="4" placeholder="Tell us about yourself..."><?php echo htmlspecialchars($user_data['bio'] ?? ''); ?></textarea></div>
                     <div class="upload-section" style="margin-top:0; border-top:none;">
                         <h3>Avatar</h3>
                         <div class="upload-choice">
                             <input type="radio" name="avatar_source" id="avatar_upload_choice" value="file" checked> <label for="avatar_upload_choice">Upload</label>
                             <input type="radio" name="avatar_source" id="avatar_url_choice" value="url"> <label for="avatar_url_choice">URL</label>
                         </div>
-                        <div id="avatar_panel_file" class="upload-panel active">
-                            <div class="file-input-wrapper">
-                                <input type="file" name="avatar_file" id="avatar-file-input" accept="image/*">
-                                <label for="avatar-file-input" class="file-input-label">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <span id="avatar-filename">Click to upload or drag & drop</span>
-                                </label>
-                            </div>
-                        </div>
+                        <div id="avatar_panel_file" class="upload-panel active"><div class="file-input-wrapper"><input type="file" name="avatar_file" id="avatar-file-input" accept="image/*"><label for="avatar-file-input" class="file-input-label"><i class="fas fa-cloud-upload-alt"></i><span id="avatar-filename">Click to upload or drag & drop</span></label></div></div>
                         <div id="avatar_panel_url" class="upload-panel"><input type="url" name="avatar_url" id="avatar-url-input" class="form-control" placeholder="https://example.com/image.jpg"></div>
                     </div>
                     <div class="upload-section">
@@ -405,15 +414,7 @@ $social_icon_classes = [
                             <input type="radio" name="banner_source" id="banner_upload_choice" value="file" checked> <label for="banner_upload_choice">Upload</label>
                             <input type="radio" name="banner_source" id="banner_url_choice" value="url"> <label for="banner_url_choice">URL</label>
                         </div>
-                        <div id="banner_panel_file" class="upload-panel active">
-                           <div class="file-input-wrapper">
-                                <input type="file" name="banner_file" id="banner-file-input" accept="image/*">
-                                <label for="banner-file-input" class="file-input-label">
-                                    <i class="fas fa-cloud-upload-alt"></i>
-                                    <span id="banner-filename">Click to upload or drag & drop</span>
-                                </label>
-                            </div>
-                        </div>
+                        <div id="banner_panel_file" class="upload-panel active"><div class="file-input-wrapper"><input type="file" name="banner_file" id="banner-file-input" accept="image/*"><label for="banner-file-input" class="file-input-label"><i class="fas fa-cloud-upload-alt"></i><span id="banner-filename">Click to upload or drag & drop</span></label></div></div>
                         <div id="banner_panel_url" class="upload-panel"><input type="url" name="banner_url" id="banner-url-input" class="form-control" placeholder="https://example.com/banner.jpg"></div>
                     </div>
                     <hr>
@@ -432,10 +433,7 @@ $social_icon_classes = [
                             <?php else: ?>
                                 <input type="password" id="api-key-input" class="form-control" value="<?php echo htmlspecialchars($user_data['api_key']); ?>" readonly>
                             <?php endif; ?>
-                            <div class="api-key-actions">
-                                <button type="button" id="toggle-api-key" title="Show/Hide Key"><i class="fas fa-eye"></i></button>
-                                <button type="button" id="copy-api-key" title="Copy Key"><i class="fas fa-copy"></i></button>
-                            </div>
+                            <div class="api-key-actions"><button type="button" id="toggle-api-key" title="Show/Hide Key"><i class="fas fa-eye"></i></button><button type="button" id="copy-api-key" title="Copy Key"><i class="fas fa-copy"></i></button></div>
                         </div>
                         <small>
                             <?php if ($user_data['is_verified']): ?>
@@ -458,6 +456,23 @@ $social_icon_classes = [
     </script>
     <?php endif; ?>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script>hljs.highlightAll();</script>
+    <script>
+        hljs.highlightAll();
+        const copyBtn = document.getElementById('copy-uuid-btn');
+        if(copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const uuidText = document.querySelector('#uuid-container span').textContent;
+                navigator.clipboard.writeText(uuidText).then(() => {
+                    const icon = copyBtn.querySelector('i');
+                    icon.classList.remove('far', 'fa-copy');
+                    icon.classList.add('fas', 'fa-check');
+                    setTimeout(() => {
+                        icon.classList.remove('fas', 'fa-check');
+                        icon.classList.add('far', 'fa-copy');
+                    }, 1500);
+                });
+            });
+        }
+    </script>
 </body>
 </html>
