@@ -3,7 +3,7 @@ require_once "includes/db.php";
 require_once "includes/functions.php";
 
 if (!isLoggedIn()) {
-    header("location: /");
+    header("location: index.php");
     exit;
 }
 

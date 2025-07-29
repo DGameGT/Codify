@@ -5,31 +5,51 @@ ob_start("ob_gzhandler");
 require_once "includes/db.php";
 require_once "includes/functions.php";
 
-// session_start();
-
-$view_mode = isset($_GET['profile']) && !empty($_GET['profile']) ? 'profile' : 'leaderboard';
 $current_user_id = $_SESSION['id'] ?? null;
-$page_data = [];
-$message = [];
+$username = $_SESSION['username'] ?? null;
+$user_role = '';
+$profile_picture = 'default.png';
+
+if ($current_user_id) {
+    $stmt_user = $mysqli->prepare("SELECT role, profile_picture FROM users WHERE id = ?");
+    $stmt_user->bind_param("i", $current_user_id);
+    $stmt_user->execute();
+    $result_user = $stmt_user->get_result();
+    if ($user_data = $result_user->fetch_assoc()) {
+        $user_role = $user_data['role'];
+        $profile_picture = $user_data['profile_picture'] ?? 'default.png';
+    }
+    $stmt_user->close();
+}
+
+$leaderboard_data = fetchLeaderboardData($mysqli);
 
 function getProfilePicture($filename, $username) {
+    if ($filename && filter_var($filename, FILTER_VALIDATE_URL)) {
+        return htmlspecialchars($filename);
+    }
     $path = "db/profile/" . $filename;
     if ($filename && $filename !== 'default.png' && file_exists($path)) {
         return htmlspecialchars($path);
     }
-    return 'https://ui-avatars.com/api/?name=' . urlencode($username) . '&background=6366f1&color=ffffff&size=256&bold=true&format=svg';
+    return 'https://ui-avatars.com/api/?name=' . urlencode($username) . '&background=4f46e5&color=ffffff&size=128&bold=true';
 }
 
 function getBannerUrl($filename) {
+    if ($filename && filter_var($filename, FILTER_VALIDATE_URL)) {
+        return htmlspecialchars($filename);
+    }
     $path = "db/thumbnails/" . $filename;
     if ($filename && file_exists($path)) {
         return htmlspecialchars($path);
     }
-    return 'data:image/svg+xml,' . rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 400"><defs><linearGradient id="modernGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#667eea"/><stop offset="50%" style="stop-color:#764ba2"/><stop offset="100%" style="stop-color:#f093fb"/></linearGradient><filter id="noise"><feTurbulence baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter></defs><rect width="100%" height="100%" fill="url(#modernGrad)"/><rect width="100%" height="100%" fill="url(#modernGrad)" opacity="0.4" filter="url(#noise)"/></svg>');
+    // Fallback keren jika tidak ada banner
+    return 'data:image/svg+xml,' . rawurlencode('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0a192f"/><stop offset="100%" stop-color="#112240"/></linearGradient><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/></filter></defs><rect width="100%" height="100%" fill="url(#g)"/><rect width="100%" height="100%" fill="url(#g)" opacity="0.2" filter="url(#n)"/></svg>');
 }
 
 function fetchLeaderboardData($mysqli) {
     $data = [];
+    // Query mengambil data user untuk leaderboard
     $sql = "SELECT u.id, u.username, u.display_name, u.profile_picture, u.thumbnail, u.is_verified, COUNT(c.id) AS code_count 
             FROM users u LEFT JOIN codes c ON u.id = c.user_id 
             GROUP BY u.id HAVING code_count > 0 
@@ -37,67 +57,18 @@ function fetchLeaderboardData($mysqli) {
     if ($stmt = $mysqli->prepare($sql)) {
         $stmt->execute();
         $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) $data[] = $row;
+        while ($row = $result->fetch_assoc()) {
+            $data[] = $row;
+        }
         $stmt->close();
     }
     return $data;
 }
 
-function fetchUserDataByUsername($mysqli, $username) {
-    $sql = "SELECT id, username, display_name, api_key, bio, profile_picture, thumbnail, is_verified, social_links FROM users WHERE username = ? LIMIT 1";
-    if ($stmt = $mysqli->prepare($sql)) {
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $data = $stmt->get_result()->fetch_assoc();
-        $stmt->close();
-        return $data;
-    }
-    return null;
-}
-
-function fetchUserSnippets($mysqli, $userId) {
-    $snippets = [];
-    $sql = "SELECT share_id, title, language, created_at, views FROM codes WHERE user_id = ? ORDER BY created_at DESC";
-    if ($stmt = $mysqli->prepare($sql)) {
-        $stmt->bind_param("i", $userId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        while ($row = $result->fetch_assoc()) $snippets[] = $row;
-        $stmt->close();
-    }
-    return $snippets;
-}
-
-if ($view_mode === 'leaderboard') {
-    $page_data['leaderboard'] = fetchLeaderboardData($mysqli);
-} else {
-    $viewed_username = $_GET['profile'];
-    $user_data = fetchUserDataByUsername($mysqli, $viewed_username);
-
-    if (!$user_data) {
-        http_response_code(404);
-        die("User not found.");
-    }
-
-    $page_data['user'] = $user_data;
-    $page_data['snippets'] = fetchUserSnippets($mysqli, $user_data['id']);
-    $page_data['is_owner'] = ($current_user_id === $user_data['id']);
-    $page_data['social_links'] = json_decode($user_data['social_links'] ?? '[]', true);
-
-    if ($page_data['is_owner'] && $_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
-        header("Location: ?profile=" . urlencode($user_data['username']) . "&status=updated");
-        exit;
-    }
-    
-    if (isset($_GET['status']) && $_GET['status'] === 'updated') {
-        $message = ["type" => "success", "text" => "Profile updated successfully!"];
-    }
-}
-
 function renderVerifiedBadge($classes = 'w-5 h-5') {
-    return "<div class='inline-flex items-center justify-center {$classes} bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full'>
-        <svg class='w-3 h-3 text-white' fill='currentColor' viewBox='0 0 20 20'>
-            <path fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/>
+    return "<div class='inline-flex items-center justify-center {$classes}' style='color: var(--accent-color);'>
+        <svg class='w-full h-full' fill='currentColor' viewBox='0 0 20 20'>
+            <path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'/>
         </svg>
     </div>";
 }
@@ -105,542 +76,213 @@ function renderVerifiedBadge($classes = 'w-5 h-5') {
 function renderPodiumCard($user, $rank) {
     $username = htmlspecialchars($user['display_name'] ?? $user['username']);
     $profilePic = getProfilePicture($user['profile_picture'], $user['username']);
-    $bannerUrl = getBannerUrl($user['thumbnail']);
     
-    $rankStyles = [
-        1 => 'from-amber-400 via-yellow-400 to-amber-500',
-        2 => 'from-slate-300 via-slate-400 to-slate-500', 
-        3 => 'from-orange-400 via-amber-500 to-orange-600'
+    $rank_styles = [
+        1 => ['order' => 'order-2 md:order-2', 'height' => 'h-48', 'icon' => '👑', 'color' => '#ffd700', 'shadow' => 'shadow-[0_0_30px_#ffd700]'],
+        2 => ['order' => 'order-1 md:order-1', 'height' => 'h-40 self-end', 'icon' => '🥈', 'color' => '#c0c0c0', 'shadow' => 'shadow-[0_0_20px_#c0c0c0]'],
+        3 => ['order' => 'order-3 md:order-3', 'height' => 'h-40 self-end', 'icon' => '🥉', 'color' => '#cd7f32', 'shadow' => 'shadow-[0_0_20px_#cd7f32]']
     ];
-    
-    $animationDelay = $rank * 150;
+    $style = $rank_styles[$rank];
 
-    echo "<div class='group relative overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-xl transition-all duration-700 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25' style='animation: slideInUp 0.8s ease-out {$animationDelay}ms both;'>
-        <div class='absolute inset-0 bg-gradient-to-br {$rankStyles[$rank]} opacity-5'></div>
-        <a href='?profile=".urlencode($user['username'])."' class='block relative'>
-            <div class='relative h-32 overflow-hidden'>
-                <div class='absolute inset-0 bg-gradient-to-br {$rankStyles[$rank]} opacity-90'></div>
-                <div class='absolute inset-0' style='background-image: url(\"{$bannerUrl}\"); background-size: cover; background-position: center; mix-blend-mode: overlay;'></div>
-                <div class='absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white font-bold text-lg'>#{$rank}</div>
-            </div>
-            <div class='relative px-6 pb-6 -mt-12'>
-                <div class='flex justify-center mb-4'>
-                    <div class='relative'>
-                        <img src='{$profilePic}' alt='{$username}' class='w-20 h-20 rounded-2xl border-4 border-white dark:border-slate-800 shadow-lg transition-transform duration-500 group-hover:scale-110'>
-                        <div class='absolute -bottom-1 -right-1 w-6 h-6 bg-gradient-to-r {$rankStyles[$rank]} rounded-full flex items-center justify-center'>
-                            <span class='text-white text-xs font-bold'>#{$rank}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class='text-center space-y-2'>
-                    <div class='flex items-center justify-center gap-2'>
-                        <h3 class='text-lg font-bold text-slate-800 dark:text-white'>{$username}</h3>
-                        " . ($user['is_verified'] ? renderVerifiedBadge('w-5 h-5') : '') . "
-                    </div>
-                    <div class='inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-full text-sm font-semibold shadow-lg'>
-                        <svg class='w-4 h-4 mr-2' fill='currentColor' viewBox='0 0 20 20'>
-                            <path d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z'/>
-                        </svg>
-                        ".number_format($user['code_count'])." Codes
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>";
+    echo "<div class='flex flex-col items-center text-center {$style['order']} group'>";
+    echo "  <p class='text-4xl font-bold mb-2' style='color:{$style['color']}'>{$style['icon']}</p>";
+    echo "  <a href='profile.php?user=".urlencode($user['username'])."' class='relative'>";
+    echo "      <img src='{$profilePic}' alt='{$username}' class='w-24 h-24 rounded-full border-4 transition-all duration-300 group-hover:scale-110 {$style['shadow']}' style='border-color: {$style['color']};'>";
+    echo "  </a>";
+    echo "  <h3 class='mt-4 text-lg font-bold flex items-center gap-2' style='color: var(--text-primary);'>{$username}" . ($user['is_verified'] ? renderVerifiedBadge() : '') . "</h3>";
+    echo "  <p class='text-sm font-mono' style='color: var(--text-secondary);'>".number_format($user['code_count'])." snippets</p>";
+    echo "</div>";
 }
 
 function renderLeaderboardRow($user, $rank, $isCurrentUser) {
     $username = htmlspecialchars($user['display_name'] ?? $user['username']);
     $profilePic = getProfilePicture($user['profile_picture'], $user['username']);
-    $highlightClass = $isCurrentUser ? 'bg-gradient-to-r from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/20 dark:to-purple-900/20 border-l-4 border-l-indigo-500' : 'border-l-4 border-l-transparent';
+    $highlightClass = $isCurrentUser ? 'border-l-4' : '';
 
-    echo "<a href='?profile=".urlencode($user['username'])."' class='group flex items-center justify-between p-6 transition-all duration-300 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 {$highlightClass}' style='animation: slideInLeft 0.6s ease-out ".($rank * 50)."ms both;'>
-        <div class='flex items-center gap-6'>
-            <div class='flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 text-slate-600 dark:text-slate-300 font-bold text-lg group-hover:scale-110 transition-transform duration-300'>
-                #{$rank}
-            </div>
-            <div class='relative'>
-                <img src='{$profilePic}' alt='{$username}' class='w-14 h-14 rounded-2xl shadow-md group-hover:scale-105 transition-transform duration-300'>
-                <div class='absolute inset-0 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
-            </div>
-            <div class='space-y-1'>
-                <div class='flex items-center gap-2'>
-                    <h3 class='font-semibold text-slate-800 dark:text-slate-100 text-lg'>{$username}</h3>
-                    " . ($user['is_verified'] ? renderVerifiedBadge('w-5 h-5') : '') . "
-                    " . ($isCurrentUser ? "<span class='px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-medium rounded-full'>You</span>" : "") . "
-                </div>
-                <p class='text-sm text-slate-500 dark:text-slate-400'>@".htmlspecialchars($user['username'])."</p>
-            </div>
-        </div>
-        <div class='text-right space-y-1'>
-            <div class='text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent'>".number_format($user['code_count'])."</div>
-            <div class='text-sm text-slate-500 dark:text-slate-400'>snippets</div>
-        </div>
-    </a>";
-}
-
-function renderProfileHeader($user, $social_links, $is_owner) {
-    $username = htmlspecialchars($user['display_name'] ?? $user['username']);
-    $profilePic = getProfilePicture($user['profile_picture'], $user['username']);
-    $bannerUrl = getBannerUrl($user['thumbnail']);
-
-    echo "<div class='relative overflow-hidden rounded-3xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-slate-200/50 dark:border-slate-700/50 shadow-2xl mb-8' style='animation: slideInUp 0.8s ease-out;'>
-        <div class='relative h-64 md:h-80 overflow-hidden'>
-            <div class='absolute inset-0' style='background-image: url(\"{$bannerUrl}\"); background-size: cover; background-position: center;'></div>
-            <div class='absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent'></div>
-            <div class='absolute inset-0 bg-gradient-to-br from-indigo-500/20 via-purple-500/10 to-pink-500/20'></div>
-        </div>
-        <div class='relative px-8 pb-8 -mt-20 md:-mt-24'>
-            <div class='flex flex-col md:flex-row items-center md:items-center gap-6'>
-                <div class='relative group flex-shrink-0'>
-                    <img src='{$profilePic}' alt='{$username}' class='w-36 h-36 md:w-44 md:h-44 rounded-3xl border-6 border-white dark:border-slate-800 shadow-2xl transition-transform duration-500 group-hover:scale-105'>
-                    <div class='absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300'></div>
-                </div>
-                <div class='flex-1 min-w-0'>
-                    <div class='text-center md:text-left space-y-3 p-4 rounded-2xl bg-black/40 backdrop-blur-md border border-white/10 shadow-lg'>
-                        <div class='flex items-center justify-center md:justify-start gap-3'>
-                            <h1 class='text-4xl md:text-5xl font-black text-white'>
-                                {$username}
-                            </h1>
-                            " . ($user['is_verified'] ? renderVerifiedBadge('w-8 h-8') : '') . "
-                        </div>
-                        <p class='text-slate-300 dark:text-slate-400 text-lg font-medium'>@".htmlspecialchars($user['username'])."</p>
-                        <p class='text-slate-200 dark:text-slate-300 max-w-2xl leading-relaxed'>".nl2br(htmlspecialchars($user['bio']))."</p>
-                    </div>
-                </div>
-                " . ($is_owner ? "
-                <button onclick=\"document.getElementById('edit-profile-modal').classList.remove('hidden')\" class='flex-shrink-0 px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105'>
-                    <svg class='w-5 h-5 inline-block mr-2' fill='currentColor' viewBox='0 0 20 20'>
-                        <path d='M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z'/>
-                    </svg>
-                    Edit Profile
-                </button>
-                " : "") . "
-            </div>
-        </div>
-    </div>";
+    echo "<a href='profile.php?user=".urlencode($user['username'])."' class='grid grid-cols-12 items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 hover:scale-[1.02] {$highlightClass}' style='background-color: var(--card-bg); border: 1px solid var(--border-color); " . ($isCurrentUser ? "border-left-color: var(--accent-color);" : "") . "'>";
+    echo "  <div class='col-span-1 text-center font-bold' style='color: var(--text-secondary);'>#{$rank}</div>";
+    echo "  <div class='col-span-6 flex items-center gap-4'>";
+    echo "      <img src='{$profilePic}' alt='{$username}' class='w-10 h-10 rounded-full'>";
+    echo "      <div>";
+    echo "          <h4 class='font-bold flex items-center gap-2' style='color: var(--text-primary);'>{$username}" . ($user['is_verified'] ? renderVerifiedBadge('w-4 h-4') : '') . "</h4>";
+    echo "          <p class='text-xs' style='color: var(--text-secondary);'>@".htmlspecialchars($user['username'])."</p>";
+    echo "      </div>";
+    echo "  </div>";
+    echo "  <div class='col-span-4 text-right font-mono font-bold' style='color: var(--text-primary);'>".number_format($user['code_count'])." <span style='color: var(--text-secondary);'>snippets</span></div>";
+    if ($isCurrentUser) {
+        echo "<div class='col-span-1 text-center'><span class='px-2 py-1 text-xs rounded-full font-semibold' style='color: var(--accent-color); background-color: var(--hover-bg);'>You</span></div>";
+    }
+    echo "</a>";
 }
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $view_mode === 'profile' ? htmlspecialchars($page_data['user']['display_name'] ?? $page_data['user']['username']) . ' - Profile' : 'Codify Leaderboard'; ?></title>
+    <title>Leaderboard - Codify</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@v2.15.1/devicon.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
-            --border-color: #e2e8f0;
-            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-sans: 'Inter', sans-serif;
+            --font-serif: 'Sora', sans-serif;
+            --font-mono: 'Fira Code', monospace;
         }
-
-        [data-theme="dark"] {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border-color: #334155;
-            --shadow-color: rgba(0, 0, 0, 0.3);
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: var(--font-sans); 
+            background-color: var(--bg-color);
+            -webkit-font-smoothing: antialiased; 
+            -moz-osx-font-smoothing: grayscale; 
+            transition: background-color .3s ease; 
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .dark body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-        }
-
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .dark .glass-effect {
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        @keyframes slideInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes slideInLeft {
-            from {
-                opacity: 0;
-                transform: translateX(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        .floating {
-            animation: float 6s ease-in-out infinite;
-        }
-
-        .gradient-border {
-            position: relative;
-            background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899);
-            padding: 2px;
-            border-radius: 24px;
-        }
-
-        .gradient-border::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            padding: 2px;
-            background: linear-gradient(45deg, #6366f1, #8b5cf6, #ec4899);
-            border-radius: inherit;
-            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-            mask-composite: xor;
-        }
-
-        .theme-toggle {
-            position: fixed;
-            top: 2rem;
-            right: 2rem;
-            z-index: 50;
-            width: 56px;
-            height: 56px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .theme-toggle:hover {
-            transform: scale(1.1);
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .scrollbar-hide {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-            display: none;
-        }
-
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                    },
-                    animation: {
-                        'slide-up': 'slideInUp 0.8s ease-out',
-                        'slide-left': 'slideInLeft 0.6s ease-out',
-                        'fade-in': 'fadeIn 0.5s ease-out',
-                        'float': 'float 6s ease-in-out infinite',
-                    },
-                }
-            }
-        }
+        .theme-glassmorphism { --bg-color: #0d1117; --sidebar-bg: rgba(22, 27, 34, 0.7); --main-bg: transparent; --card-bg: rgba(34, 40, 49, 0.6); --modal-bg: rgba(22, 27, 34, 0.85); --border-color: rgba(139, 148, 158, 0.3); --text-primary: #c9d1d9; --text-secondary: #8b949e; --accent-glow: 0 0 15px rgba(38, 129, 255, 0.6); --accent-color: #2681ff; --hover-bg: rgba(56, 139, 253, 0.1); }
+        .theme-neumorphism { --bg-color: #e0e5ec; --sidebar-bg: #e0e5ec; --main-bg: #e0e5ec; --card-bg: #e0e5ec; --modal-bg: #e0e5ec; --border-color: transparent; --text-primary: #5c677b; --text-secondary: #9ba6b9; --accent-color: #4a7dff; --shadow-light: #ffffff; --shadow-dark: #a3b1c6; --card-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light); --button-shadow: 6px 6px 12px var(--shadow-dark), -6px -6px 12px var(--shadow-light); }
+        .dark.theme-neumorphism { --bg-color: #2c3038; --sidebar-bg: #2c3038; --main-bg: #2c3038; --card-bg: #2c3038; --modal-bg: #2c3038; --text-primary: #d0d3d8; --text-secondary: #7e8490; --accent-color: #5a8dff; --shadow-light: #363b44; --shadow-dark: #22252c; }
+        .theme-hacker { --bg-color: #000; --sidebar-bg: rgba(0,0,0,0.8); --main-bg: transparent; --card-bg: rgba(10, 25, 47, 0.2); --modal-bg: #0a192f; --border-color: rgba(0, 255, 128, 0.3); --text-primary: #00ff80; --text-secondary: #00a354; --accent-color: #a855f7; --accent-glow: 0 0 12px rgba(168, 85, 247, 0.8); }
+        .theme-minimal { --bg-color: #111111; --sidebar-bg: #111111; --main-bg: #111111; --card-bg: #1C1C1C; --modal-bg: #222222; --border-color: #333; --text-primary: #f0f0f0; --text-secondary: #999; --accent-color: #3b82f6; --hover-bg: #2a2a2a; }
+        .theme-hybrid { --bg-color: #0a0a0a; --sidebar-bg: rgba(18, 18, 18, 0.7); --main-bg: transparent; --card-bg: rgba(26, 26, 26, 0.6); --modal-bg: #121212; --border-color: #2a2a2a; --text-primary: #e5e5e5; --text-secondary: #888; --accent-color: #00e0b8; --accent-glow: 0 0 15px rgba(0, 224, 184, 0.5); --shadow-light: #2c2c2c; --shadow-dark: #000000; --button-shadow: 4px 4px 8px var(--shadow-dark), -4px -4px 8px var(--shadow-light); }
+        .theme-hacker { font-family: var(--font-mono); }
+        .theme-minimal { font-family: var(--font-serif); }
+        .bg-gradient-animate { background-size: 200% 200%; animation: gradient 15s ease infinite; }
+        @keyframes gradient { 0% {background-position: 0% 50%;} 50% {background-position: 100% 50%;} 100% {background-position: 0% 50%;} }
+        .bg-grid { background-image: linear-gradient(var(--border-color) 1px, transparent 1px), linear-gradient(to right, var(--border-color) 1px, transparent 1px); background-size: 2rem 2rem; }
+        [x-cloak] { display: none !important; }
     </style>
-    <script>
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const storedTheme = localStorage.getItem('theme');
-        const theme = storedTheme || (prefersDark ? 'dark' : 'light');
-        
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-        document.documentElement.setAttribute('data-theme', theme);
-
-        function toggleTheme() {
-            const isDark = document.documentElement.classList.toggle('dark');
-            const newTheme = isDark ? 'dark' : 'light';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-        }
-    </script>
 </head>
-<body class="min-h-screen text-slate-800 dark:text-slate-200 transition-colors duration-300">
-    <div class="theme-toggle" onclick="toggleTheme()">
-        <svg class="w-6 h-6 text-white dark:hidden" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/>
-        </svg>
-        <svg class="w-6 h-6 text-white hidden dark:block" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/>
-        </svg>
-    </div>
+<body x-data='{
+    theme: localStorage.getItem("theme") || "theme-glassmorphism",
+    setTheme(t) { this.theme = t; localStorage.setItem("theme", t); },
+    isSidebarOpen: window.innerWidth > 768,
+    isProfileMenuOpen: false
+}'
+:class="theme"
+>
+<div class="fixed inset-0 -z-10 bg-gradient-to-br from-blue-500/20 via-cyan-500/20 to-purple-500/20 bg-gradient-animate" x-show="theme === 'theme-glassmorphism' || theme === 'theme-hybrid'"></div>
+<div class="fixed inset-0 -z-10 bg-black bg-grid" x-show="theme === 'theme-hacker'"></div>
 
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
-        <?php if ($view_mode === 'leaderboard'): ?>
-            <header class="text-center mb-16 space-y-6" style="animation: slideInUp 0.8s ease-out;">
-                <div class="floating">
-                    <a href="index.php" class="inline-block no-underline group">
-                        <h1 class="text-6xl md:text-7xl font-black mb-4">
-                            <span class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">Codify</span>
-                            <span class="text-slate-800 dark:text-white ml-4">Leaderboard</span>
-                        </h1>
-                    </a>
-                </div>
-                <p class="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
-                    Discover the most active code contributors in our vibrant community. Share your creativity and climb the ranks!
-                </p>
-            </header>
-
-            <?php if (isset($page_data['leaderboard']) && count($page_data['leaderboard']) >= 3): ?>
-            <section class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-                <?php foreach (array_slice($page_data['leaderboard'], 0, 3) as $index => $user) {
-                    renderPodiumCard($user, $index + 1);
-                } ?>
-            </section>
-            <?php endif; ?>
-
-            <section class="glass-effect rounded-3xl shadow-2xl overflow-hidden" style="animation: slideInUp 0.8s ease-out 0.3s both;">
-                <div class="divide-y divide-slate-200/50 dark:divide-slate-700/50">
-                    <?php if (isset($page_data['leaderboard']) && !empty($page_data['leaderboard'])): ?>
-                        <?php foreach ($page_data['leaderboard'] as $index => $user):
-                            renderLeaderboardRow($user, $index + 1, $user['id'] == $current_user_id);
-                        endforeach; ?>
-                    <?php else: ?>
-                        <div class="p-16 text-center">
-                            <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 rounded-full flex items-center justify-center">
-                                <svg class="w-12 h-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-                                </svg>
-                            </div>
-                            <h3 class="text-2xl font-bold text-slate-600 dark:text-slate-300 mb-2">No contributors yet</h3>
-                            <p class="text-slate-500 dark:text-slate-400">Be the first to share your code and claim the top spot!</p>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            </section>
-        <?php else: ?>
-            <nav class="mb-8" style="animation: slideInLeft 0.6s ease-out;">
-                <a href="leaderboard.php" class="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white hover:bg-white/20 transition-all duration-300 hover:scale-105 shadow-lg">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-                    </svg>
-                    Back to Leaderboard
+<div class="flex min-h-screen w-full">
+    <aside
+        class="fixed top-0 left-0 h-full z-40 transition-transform duration-300 ease-in-out w-[260px]"
+        :class="isSidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+        style="background-color: var(--sidebar-bg); border-right: 1px solid var(--border-color); backdrop-filter: blur(16px);"
+        :style="theme === 'theme-neumorphism' ? { boxShadow: 'var(--button-shadow)' } : {}"
+    >
+        <div class="flex flex-col h-full">
+            <div class="flex items-center justify-between h-16 px-6 border-b shrink-0" style="border-color: var(--border-color);">
+                <a href="index.php" class="flex items-center gap-2 text-xl font-bold" style="color: var(--text-primary);">Codify</a>
+                <button @click="isSidebarOpen = false" class="md:hidden" style="color:var(--text-secondary);">&times;</button>
+            </div>
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <a href="dashboard.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg> Dashboard</a>
+                <a href="leaderboard.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-primary); background-color: var(--hover-bg);"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Leaderboard</a>
+                <?php if (strtolower($user_role) === 'owner'): ?>
+                <a href="admin.php" class="flex items-center gap-3 px-4 py-2 rounded-lg" style="color: var(--text-secondary);">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd" /></svg>
+                    Admin Panel
                 </a>
+                <?php endif; ?>
             </nav>
-
-            <?php renderProfileHeader($page_data['user'], $page_data['social_links'], $page_data['is_owner']); ?>
-
-            <main class="space-y-8" style="animation: slideInUp 0.8s ease-out 0.2s both;">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-3xl font-bold text-white">
-                        Shared Snippets
-                    </h2>
-                    <div class="flex items-center gap-2 px-4 py-2 glass-effect rounded-2xl">
-                        <svg class="w-5 h-5 text-slate-300" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                        </svg>
-                        <span class="text-sm font-medium text-slate-200 dark:text-slate-400"><?= count($page_data['snippets']) ?> snippets</span>
+            <div class="p-4 border-t" style="border-color: var(--border-color);">
+                <div x-data="{
+                        themes: [
+                            { name: 'Glassmorphism', value: 'theme-glassmorphism'},
+                            { name: 'Neumorphism', value: 'theme-neumorphism' },
+                            { name: 'Cyber Hacker', value: 'theme-hacker' },
+                            { name: 'Minimal Dark', value: 'theme-minimal' },
+                            { name: 'Hybrid', value: 'theme-hybrid' }
+                        ],
+                        isOpen: false,
+                        currentThemeName() {
+                            return this.themes.find(t => t.value === theme).name;
+                        }
+                    }" class="relative">
+                    <button @click="isOpen = !isOpen" class="w-full flex items-center justify-between px-4 py-2 rounded-lg" style="color: var(--text-secondary); background-color: var(--card-bg);">
+                        <span x-text="currentThemeName()"></span>
+                        <span class="text-xs transition-transform" :class="{'rotate-180': isOpen}">&#9662;</span>
+                    </button>
+                    <div x-show="isOpen" @click.away="isOpen = false" x-cloak class="absolute bottom-full mb-2 w-full rounded-lg" style="background-color: var(--sidebar-bg); border: 1px solid var(--border-color);">
+                        <template x-for="t in themes">
+                            <a href="#" @click.prevent="setTheme(t.value); isOpen = false;" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);" x-text="t.name"></a>
+                        </template>
                     </div>
                 </div>
+            </div>
+        </div>
+    </aside>
 
-                <?php if (empty($page_data['snippets'])): ?>
-                    <div class="glass-effect rounded-3xl p-16 text-center">
-                        <div class="w-32 h-32 mx-auto mb-8 bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-800 rounded-full flex items-center justify-center">
-                            <svg class="w-16 h-16 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                            </svg>
+    <div class="flex-1 flex flex-col transition-all duration-300 ease-in-out" :class="{ 'md:ml-[260px]': isSidebarOpen }">
+        <header class="flex items-center justify-between h-16 px-6 shrink-0 border-b gap-4" style="background-color: var(--sidebar-bg); border-color: var(--border-color); backdrop-filter: blur(16px);">
+            <div class="flex items-center gap-4">
+                <button @click="isSidebarOpen = !isSidebarOpen" style="color: var(--text-secondary);">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+            </div>
+            <div class="flex items-center gap-4">
+                <?php if ($username): ?>
+                    <div class="relative">
+                        <button @click="isProfileMenuOpen = !isProfileMenuOpen" class="flex items-center gap-2">
+                            <img src="db/profile/<?php echo htmlspecialchars($profile_picture); ?>" alt="Avatar" class="w-8 h-8 rounded-full">
+                            <span class="hidden md:inline" style="color: var(--text-primary);"><?php echo htmlspecialchars($username); ?></span>
+                        </button>
+                        <div x-show="isProfileMenuOpen" @click.away="isProfileMenuOpen = false" x-cloak
+                            class="absolute right-0 mt-2 w-48 rounded-lg shadow-lg py-1"
+                            style="background-color: var(--sidebar-bg); border: 1px solid var(--border-color);">
+                            <a href="profile.php" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);">Profile</a>
+                            <a href="logout.php" class="block px-4 py-2 text-sm" style="color: var(--text-secondary);">Sign Out</a>
                         </div>
-                        <h3 class="text-2xl font-bold text-slate-300 mb-4">No code snippets yet</h3>
-                        <p class="text-slate-400 text-lg">This developer hasn't shared any code snippets with the community yet.</p>
                     </div>
                 <?php else: ?>
-                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <?php foreach($page_data['snippets'] as $index => $snippet): ?>
-                            <div class="group glass-effect rounded-2xl p-6 transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/25" style="animation: slideInUp 0.6s ease-out <?= $index * 100 ?>ms both;">
-                                <div class="flex items-start justify-between mb-4">
-                                    <div class="flex-1">
-                                        <h3 class="font-bold text-lg text-white mb-2 line-clamp-2"><?= htmlspecialchars($snippet['title']) ?></h3>
-                                        <div class="flex items-center gap-2 mb-3">
-                                            <span class="px-3 py-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-xs font-semibold rounded-full">
-                                                <?= htmlspecialchars($snippet['language']) ?>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
-                                        <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
-                                        </svg>
-                                    </div>
-                                </div>
-
-                                <div class="space-y-3 mb-6">
-                                    <div class="flex items-center gap-2 text-sm text-slate-400">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <span><?= number_format($snippet['views']) ?> views</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-sm text-slate-400">
-                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <span><?= date('M j, Y', strtotime($snippet['created_at'])) ?></span>
-                                    </div>
-                                </div>
-
-                                <a href="view.php?id=<?= $snippet['share_id'] ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl transition-all duration-300 group-hover:scale-105 shadow-lg">
-                                    <span>View Code</span>
-                                    <svg class="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                                    </svg>
-                                </a>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
+                    <a href="index.php" class="px-4 py-2 rounded-lg font-semibold" style="color: var(--text-primary);">Login</a>
                 <?php endif; ?>
-            </main>
-        <?php endif; ?>
-    </div>
+            </div>
+        </header>
 
-
-    <?php if ($view_mode === 'profile' && $page_data['is_owner']): ?>
-    <div id="edit-profile-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4" onclick="event.target === this && this.classList.add('hidden')">
-        <div class="glass-effect rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-hide" onclick="event.stopPropagation()" style="animation: slideInUp 0.5s ease-out;">
-            <form action="?profile=<?= urlencode($page_data['user']['username']) ?>" method="POST" enctype="multipart/form-data" class="p-8">
-                <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-                        Edit Your Profile
-                    </h2>
-                    <button type="button" onclick="document.getElementById('edit-profile-modal').classList.add('hidden')" class="w-10 h-10 rounded-full bg-slate-200/50 dark:bg-slate-700/50 flex items-center justify-center hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                
-                <input type="hidden" name="action" value="save_changes">
-                
-                <div class="space-y-6">
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Display Name</label>
-                        <input type="text" name="display_name" value="<?= htmlspecialchars($page_data['user']['display_name'] ?? '') ?>" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
-                    </div>
-                    
-                    <div class="space-y-2">
-                        <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Bio</label>
-                        <textarea name="bio" rows="4" placeholder="Tell us about yourself..." class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all resize-none"><?= htmlspecialchars($page_data['user']['bio'] ?? '') ?></textarea>
-                    </div>
-                    
-                    <div class="grid md:grid-cols-2 gap-6">
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Profile Picture</label>
-                            <input type="file" name="profile_picture" accept="image/*" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
-                        </div>
-                        
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300">Banner Image</label>
-                            <input type="file" name="banner" accept="image/*" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white/50 dark:bg-slate-800/50 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-slate-200/50 dark:border-slate-700/50">
-                    <button type="button" onclick="document.getElementById('edit-profile-modal').classList.add('hidden')" class="px-6 py-3 bg-slate-200/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-300 font-semibold rounded-xl hover:bg-slate-300/50 dark:hover:bg-slate-600/50 transition-all duration-300">
-                        Cancel
-                    </button>
-                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
-                        <svg class="w-5 h-5 inline-block mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                        Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php if (!empty($message)): ?>
-    <div id="notification" class="fixed top-4 right-4 z-50 px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl shadow-lg" style="animation: slideInLeft 0.5s ease-out;">
-        <div class="flex items-center gap-3">
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-            </svg>
-            <span class="font-semibold"><?= htmlspecialchars($message['text']) ?></span>
-        </div>
-    </div>
-    <script>
-        setTimeout(() => {
-            const notification = document.getElementById('notification');
-            if (notification) {
-                notification.style.animation = 'slideInUp 0.5s ease-out reverse';
-                setTimeout(() => notification.remove(), 500);
-            }
-        }, 3000);
-    </script>
-    <?php endif; ?>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const cards = document.querySelectorAll('.group');
+        <main class="flex-1 p-6" style="background-color: var(--main-bg);">
+            <header class="text-center mb-12">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-2" style="color: var(--text-primary);">
+                    Codify <span style="color: var(--accent-color);">Leaderboard</span>
+                </h1>
+                <p class="text-lg" style="color: var(--text-secondary);">Meet the top contributors of our community.</p>
+            </header>
             
-            cards.forEach(card => {
-                card.addEventListener('mouseenter', function() {
-                    this.style.transform = 'translateY(-8px) scale(1.02)';
-                });
-                
-                card.addEventListener('mouseleave', function() {
-                    this.style.transform = 'translateY(0) scale(1)';
-                });
-            });
+            <?php if (!empty($leaderboard_data)): ?>
+                <?php if (count($leaderboard_data) >= 1): ?>
+                <section class="mb-12">
+                    <div class="grid grid-cols-3 md:grid-cols-3 gap-4 md:gap-8 items-end max-w-4xl mx-auto">
+                        <?php 
+                            // Render podium, pastikan tidak error jika user kurang dari 3
+                            if (isset($leaderboard_data[1])) renderPodiumCard($leaderboard_data[1], 2); else echo "<div></div>";
+                            if (isset($leaderboard_data[0])) renderPodiumCard($leaderboard_data[0], 1); else echo "<div></div>";
+                            if (isset($leaderboard_data[2])) renderPodiumCard($leaderboard_data[2], 3); else echo "<div></div>";
+                        ?>
+                    </div>
+                </section>
+                <?php endif; ?>
 
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.style.opacity = '1';
-                        entry.target.style.transform = 'translateY(0)';
-                    }
-                });
-            }, {
-                threshold: 0.1,
-                rootMargin: '50px'
-            });
+                <section class="max-w-4xl mx-auto">
+                    <div class="space-y-3">
+                        <?php if (count($leaderboard_data) > 3): ?>
+                            <?php foreach (array_slice($leaderboard_data, 3) as $index => $user):
+                                renderLeaderboardRow($user, $index + 4, $user['id'] == $current_user_id);
+                            endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </section>
+            <?php else: ?>
+                <div class="text-center py-16 rounded-xl" style="background-color: var(--card-bg); border: 1px solid var(--border-color);">
+                    <h3 class="text-2xl font-bold mb-2" style="color: var(--text-primary);">The Stage is Empty</h3>
+                    <p style="color: var(--text-secondary);">Be the first to share a snippet and claim the top spot!</p>
+                </div>
+            <?php endif; ?>
 
-            document.querySelectorAll('[style*="animation"]').forEach(el => {
-                observer.observe(el);
-            });
-        });
-    </script>
+        </main>
+    </div>
+</div>
 </body>
 </html>
