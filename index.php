@@ -231,7 +231,7 @@ function generatePagination($total_pages, $current_page, $adjacents = 1) {
     </main>
     
     <footer class="text-center py-8 mt-16 border-t" :style="{borderColor: 'var(--border-color)', color: 'var(--text-secondary)'}">
-        <p>&copy; <?php echo date("Y"); ?> Codify. Crafted by <a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer" :style="{color: 'var(--text-primary)'}">DGXO</a>.</p>
+        <p>&copy; <?php echo date("Y"); ?> Codify.| Copyright 2025 All Rights Reserved |<a href="https://github.com/dgamegt" target="_blank" rel="noopener noreferrer" :style="{color: 'var(--text-primary)'}">DGXO</a>.</p>
     </footer>
 
     <div x-show="isAuthModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" style="background-color: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
